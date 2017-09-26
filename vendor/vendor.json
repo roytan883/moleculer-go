@@ -9,6 +9,120 @@
 			"revisionTime": "2017-08-22T13:27:46Z"
 		},
 		{
+			"checksumSHA1": "ATWdid6226zEtPadx4fdSp2sF2k=",
+			"path": "github.com/json-iterator/go",
+			"revision": "dbb1ef3f63aa0d9a11eec791f70d4a19981fa068",
+			"revisionTime": "2017-09-21T13:04:45Z"
+		},
+		{
+			"checksumSHA1": "YdkUoSkbe4ZgLJyFqpEbWZpfPtE=",
+			"path": "github.com/nats-io/go-nats",
+			"revision": "0977874fadb35fa59e42744325dbbdfe83aab6b1",
+			"revisionTime": "2017-08-31T15:35:37Z"
+		},
+		{
+			"checksumSHA1": "Q2c9uTEIGhSIddv5pntYdFNtUdk=",
+			"path": "github.com/nats-io/go-nats/encoders/builtin",
+			"revision": "0977874fadb35fa59e42744325dbbdfe83aab6b1",
+			"revisionTime": "2017-08-31T15:35:37Z"
+		},
+		{
+			"checksumSHA1": "LhbIA/oMWpscEPPK9Wrx5GLcz44=",
+			"path": "github.com/nats-io/go-nats/util",
+			"revision": "0977874fadb35fa59e42744325dbbdfe83aab6b1",
+			"revisionTime": "2017-08-31T15:35:37Z"
+		},
+		{
+			"checksumSHA1": "qI+4s7mlYYbB7ppay+Z3Y7+mhik=",
+			"path": "github.com/nats-io/nuid",
+			"revision": "3cf34f9fca4e88afa9da8eabd75e3326c9941b44",
+			"revisionTime": "2017-03-03T15:02:24Z"
+		},
+		{
+			"checksumSHA1": "aemjNxOhRSmiPj/cuAgc/qFo/eg=",
+			"path": "github.com/shomali11/parallelizer",
+			"revision": "a1053f1f85672158fbd99b9bc0dd3943c9479ecb",
+			"revisionTime": "2017-06-27T04:45:40Z"
+		},
+		{
+			"checksumSHA1": "CXeDXoBtv52rYXcAll7HHgN203k=",
+			"path": "github.com/shomali11/util",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "yGj20Tdh4lWA0Cc9QHU4zf4vjcw=",
+			"path": "github.com/shomali11/util/calculations",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "iM9hP+HbZJFeF1zi/uFWp8wFhq0=",
+			"path": "github.com/shomali11/util/compressions",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "RycSLpmjK2c//LpuSPeBIuocgec=",
+			"path": "github.com/shomali11/util/concurrency",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "SS6yw1wVQhWHxLkBsbDtj7lewPI=",
+			"path": "github.com/shomali11/util/conditions",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "FVIMOtpjZtdlagTq1v+qfpghIOA=",
+			"path": "github.com/shomali11/util/conversions",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "3CoLyIqnek53hgCvSwqAtV52WDA=",
+			"path": "github.com/shomali11/util/errors",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "q5luNe1RfyiWXcSXhwUwMGQxzns=",
+			"path": "github.com/shomali11/util/hashes",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "WGPXdzf6WyC4mH2tEIeFNJQTAUQ=",
+			"path": "github.com/shomali11/util/manipulations",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "yPgVsVXfvWaOgDZn6rS9sNHFwWQ=",
+			"path": "github.com/shomali11/util/runes",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "Ck1mlRFavsJlx2Gt/NB97Gy1Mqs=",
+			"path": "github.com/shomali11/util/strings",
+			"revision": "a3878addafcd0ecad0123deb35c23691b1fc1a2f",
+			"revisionTime": "2017-08-05T22:13:36Z"
+		},
+		{
+			"checksumSHA1": "veDciEdlch+VIL/B00QhFWfzC+Y=",
+			"path": "github.com/tidwall/gjson",
+			"revision": "be96719f990978a867f52c48f29d43f6b591da28",
+			"revisionTime": "2017-08-30T17:08:10Z"
+		},
+		{
+			"checksumSHA1": "qmePMXEDYGwkAfT9QvtMC58JN/E=",
+			"path": "github.com/tidwall/match",
+			"revision": "173748da739a410c5b0b813b956f89ff94730b4c",
+			"revisionTime": "2016-08-30T17:39:30Z"
+		},
+		{
 			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "7d9177d70076375b9a59c8fde23d52d9c4a7ecd5",
