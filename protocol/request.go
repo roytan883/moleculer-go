@@ -8,8 +8,8 @@ type MsRequest struct {
 	Action    string      `json:"action"`
 	Params    interface{} `json:"params"`
 	Meta      interface{} `json:"meta"`
-	Timeout   float32     `json:"timeout"`
-	Level     int32       `json:"level"`
+	Timeout   uint32      `json:"timeout"`
+	Level     uint32      `json:"level"`
 	Metrics   bool        `json:"metrics"`
 	ParentID  string      `json:"parentID"`
 	RequestID string      `json:"requestID"`

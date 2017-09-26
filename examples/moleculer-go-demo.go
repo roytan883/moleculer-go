@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -68,6 +69,11 @@ func onEventBBB(req *protocol.MsRequest) *protocol.MsResponse {
 }
 
 func main() {
+	// for index := 0; index < 100; index++ {
+	// 	log.Info(rand.Intn(2))
+	// }
+
+	// return
 	var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
 
 	// log.SetFlags(0)
@@ -106,6 +112,23 @@ func main() {
 		log.Fatalf("NewServiceBroker err: %v\n", err)
 	}
 	broker.Start()
+
+	go time.AfterFunc(time.Second*3, func() {
+		res, err := broker.Call("pushConnector.test1", map[string]interface{}{
+			"a": 111,
+			"b": "abc",
+			"c": true,
+		}, nil)
+		log.Info("broker.Call res: ", res)
+		log.Info("broker.Call err: ", err)
+		// res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+		// 	"a": 111,
+		// 	"b": "abc",
+		// 	"c": true,
+		// }, nil)
+		// log.Info("broker.Call res2: ", res2)
+		// log.Info("broker.Call err2: ", err2)
+	})
 
 	waitExit()
 
