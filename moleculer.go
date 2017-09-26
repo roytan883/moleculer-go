@@ -248,6 +248,9 @@ func (broker *ServiceBroker) Stop() (err error) {
 	}
 	broker.con.Close()
 	broker.con = nil
+	//TODO: clean
+
+	broker.stoped <- 1
 	return nil
 }
 
@@ -256,16 +259,38 @@ func (broker *ServiceBroker) _startHeartbeatTimer() {
 		for {
 			select {
 			case <-broker.stoped:
+				log.Warn("_startHeartbeatTimer stopped")
 				return
 
 			case <-time.After(time.Second * 3):
 				broker._broadcastHeartbeat()
+				broker._checkNodesTimeout()
+				//CHECK nodesStatus
 
 				// case <-time.After(time.Second * 15):
 				// 	println("10s timer")
 			}
 		}
 	}()
+}
+
+func (broker *ServiceBroker) _checkNodesTimeout() {
+	nowTime := time.Now()
+	broker.nodesStatus.Range(func(key, value interface{}) bool {
+		nodeStatusObj, ok := value.(nodeStatus)
+		if ok {
+			oldTime := nodeStatusObj.LastHeartbeatTime
+			if nowTime.Sub(oldTime) >= time.Second*6 {
+				// broker.nodesStatus.Delete(key)
+				if nodeStatusObj.Status != nodeStatusOffline {
+					log.Warn("node timeout, set nodeStatusOffline: ", key)
+					nodeStatusObj.Status = nodeStatusOffline
+					broker.nodesStatus.Store(key, nodeStatusObj)
+				}
+			}
+		}
+		return true
+	})
 }
 
 //CallOptions ...
@@ -283,7 +308,7 @@ type CallOptions struct {
 // 	"c": true,
 // }, nil)
 func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallOptions) (data interface{}, err error) {
-
+	log.Info("Call: ", action)
 	var _opts = opts
 	if _opts == nil {
 		_opts = &CallOptions{
@@ -297,12 +322,12 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	oldNodes, ok := broker.actionNodes.Load(action)
 	if !ok {
 		log.Warn("Call can't find node for: ", action)
-		return
+		return nil, errors.New("Service Not available: " + action)
 	}
 	_oldNodes, ok := oldNodes.(map[string]string)
 	if !ok {
 		log.Warn("Call can't find node err interface to map[string]string")
-		return
+		return nil, errors.New("Service Not available: " + action)
 	}
 	log.Info("Call _oldNodes = ", _oldNodes)
 	var chooseNodeID = ""
@@ -310,14 +335,14 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 		_, ok := _oldNodes[_opts.NodeID]
 		if !ok {
 			log.Warn("Call can't find dst node: ", _opts.NodeID)
-			return
+			return nil, errors.New("Service Not available: " + action)
 		}
 		chooseNodeID = _opts.NodeID
 	}
 	nodesCount := len(_oldNodes)
 	if nodesCount < 1 {
 		log.Warn("Call can't find node in actionNodes map")
-		return
+		return nil, errors.New("Service Not available: " + action)
 	}
 	onlineNodes := make([]string, 0)
 	for nodeID := range _oldNodes {
@@ -332,7 +357,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	onlineNodesCount := len(onlineNodes)
 	if onlineNodesCount < 1 {
 		log.Warn("Call can't find node in nodesStatus map with online")
-		return
+		return nil, errors.New("Service Not available: " + action)
 	}
 
 	chooseIndex := rand.Intn(onlineNodesCount)
@@ -354,10 +379,10 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	sendData, err := jsoniter.Marshal(requestObj)
 	if err != nil {
 		log.Error("Call Marshal sendData error: ", err)
-		return
+		return nil, errors.New("JSON Marshal Data Error: " + action)
 	}
-	log.Warn("Call topic: ", "MOL.REQ."+chooseNodeID)
-	log.Warn("Call data: ", string(sendData))
+	log.Info("Call topic: ", "MOL.REQ."+chooseNodeID)
+	log.Info("Call data: ", string(sendData))
 
 	waitResponseObj := &waitResponse{
 		ID:        requestObj.ID,
@@ -380,7 +405,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 
 	case <-waitResponseObj.WaitTimer.C:
 		broker.waitRequests.Delete(waitResponseObj.ID)
-		return nil, errors.New("Request timeout, action: " + action)
+		return nil, errors.New("Request timeout: " + action)
 	}
 
 }
@@ -550,6 +575,18 @@ func (broker *ServiceBroker) _onInfoTargetted(msg *nats.Msg) {
 }
 func (broker *ServiceBroker) _onHeartbeat(msg *nats.Msg) {
 	// log.Info("NATS _onHeartbeat: ", string(msg.Data))
+	jsonObj := &protocol.MsHeartbeat{}
+	err := jsoniter.Unmarshal(msg.Data, jsonObj)
+	if err != nil {
+		log.Error("parse MsHeartbeat error:", err)
+		return
+	}
+	nodeStatusObj := nodeStatus{
+		NodeID:            jsonObj.Sender,
+		LastHeartbeatTime: time.Now(),
+		Status:            nodeStatusOnline,
+	}
+	broker.nodesStatus.Store(jsonObj.Sender, nodeStatusObj)
 	return
 }
 func (broker *ServiceBroker) _onPing(msg *nats.Msg) {

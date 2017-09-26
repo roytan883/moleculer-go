@@ -15,6 +15,8 @@ import (
 	"github.com/roytan883/moleculer/protocol"
 )
 
+var pBroker *moleculer.ServiceBroker
+
 func waitExit() {
 	// Go signal notification works by sending `os.Signal`
 	// values on a channel. We'll create a channel to
@@ -43,6 +45,10 @@ func waitExit() {
 	<-done
 
 	log.Warn("=================== exit rt-go-api-framework =================== ")
+	if pBroker != nil {
+		pBroker.Stop()
+	}
+	time.Sleep(time.Second * 1)
 	os.Exit(0)
 }
 
@@ -111,6 +117,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("NewServiceBroker err: %v\n", err)
 	}
+	pBroker = broker
 	broker.Start()
 
 	go time.AfterFunc(time.Second*3, func() {
@@ -129,6 +136,22 @@ func main() {
 		// log.Info("broker.Call res2: ", res2)
 		// log.Info("broker.Call err2: ", err2)
 	})
+
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second * 3):
+				res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+					// res2, err2 := broker.Call("pushConnector.test1", map[string]interface{}{
+					"a": 111,
+					"b": "abc",
+					"c": true,
+				}, nil)
+				log.Info("broker.Call res2: ", res2)
+				log.Info("broker.Call err2: ", err2)
+			}
+		}
+	}()
 
 	waitExit()
 
