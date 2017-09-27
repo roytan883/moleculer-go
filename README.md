@@ -1,5 +1,5 @@
 # moleculer-go
-This is Moleculer implementation for go. Currently only support [NATS](http://nats.io) as transporter.
+This is Moleculer implementation for go (>=1.9.x). Currently only support [NATS](http://nats.io) as transporter.
 
 
 # moleculer(nodejs) info :
