@@ -12,22 +12,23 @@ import (
 	logrus "github.com/Sirupsen/logrus"
 
 	nats "github.com/nats-io/go-nats"
-	moleculer "github.com/roytan883/moleculer"
-	"github.com/roytan883/moleculer/protocol"
+	moleculer "github.com/roytan883/moleculer-go"
+	"github.com/roytan883/moleculer-go/protocol"
 )
+
+func init() {
+	initLog()
+}
 
 var log *logrus.Logger
 
-func init() {
+func initLog() {
 	log = logrus.New()
 	log.Formatter = &logrus.TextFormatter{
-		FullTimestamp: true,
-		//		TimestampFormat:time.RFC3339Nano,
-		//TimestampFormat: "2006-01-02T15:04:05.000000000",
-		TimestampFormat: "01-02 15:04:05.000",
+		FullTimestamp:   true,
+		TimestampFormat: "01-02 15:04:05.000000",
 	}
-	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
-	log.SetLevel(logrus.WarnLevel)
+	log.WithFields(logrus.Fields{"package": "main", "file": "moleculer-go-demo"})
 }
 
 var pBroker *moleculer.ServiceBroker

@@ -11,11 +11,29 @@ import (
 	logrus "github.com/Sirupsen/logrus"
 	nats "github.com/nats-io/go-nats"
 	"github.com/nats-io/nuid"
-	"github.com/roytan883/moleculer/protocol"
+	"github.com/roytan883/moleculer-go/protocol"
 
 	jsoniter "github.com/json-iterator/go"
 	stringsUtils "github.com/shomali11/util/strings"
 )
+
+//MoleculerGoLibVersion 0.1.0
+const MoleculerGoLibVersion = "0.1.0"
+
+func init() {
+	initLog()
+}
+
+var log *logrus.Logger
+
+func initLog() {
+	log = logrus.New()
+	log.Formatter = &logrus.TextFormatter{
+		FullTimestamp:   true,
+		TimestampFormat: "01-02 15:04:05.000000",
+	}
+	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
+}
 
 //CallbackFunc ...
 type CallbackFunc func(req *protocol.MsRequest) *protocol.MsResponse
@@ -43,9 +61,9 @@ type ServiceBroker struct {
 	selfInfoString string
 	stoped         chan int
 	nodeInfos      sync.Map //map[string]interface{} //original node info
-	nodesStatus    sync.Map //map[string]nodeStatus
+	nodesStatus    sync.Map //map[string(nodeID)]nodeStatusStruct
 	actionNodes    sync.Map //map[string(actionFullName)]map[string(nodeID)]string(nodeID)
-	waitRequests   sync.Map //map[string(id)]waitResponse
+	waitRequests   sync.Map //map[string(request.ID)]waitResponseStruct
 }
 
 type nodeStatusType int
@@ -57,13 +75,13 @@ const (
 	nodeStatusBusy                           // 3
 )
 
-type nodeStatus struct {
+type nodeStatusStruct struct {
 	NodeID            string
 	LastHeartbeatTime time.Time
 	Status            nodeStatusType
 }
 
-type waitResponse struct {
+type waitResponseStruct struct {
 	ID        string
 	SendTime  time.Time
 	Timeout   time.Duration
@@ -124,14 +142,8 @@ func (broker *ServiceBroker) Start() (err error) {
 	//set LogLevel
 	log.SetLevel(broker.config.LogLevel)
 
-	// jsoniter.Marshal(&data)
-
-	// value := gjson.Get(json, "name.last")
-	// gjson.Parse(json)
-	// println(value.String())
-
 	if broker.con != nil {
-		return
+		return nil
 	}
 	natsOpts := nats.DefaultOptions
 	//set Name if too long will lead nats-top can't show all messages
@@ -248,7 +260,6 @@ func (broker *ServiceBroker) Start() (err error) {
 	broker._genselfInfo()
 	broker._broadcastDiscover()
 	broker._startHeartbeatTimer()
-	// log.Warn("_genselfInfo = ", )
 
 	return nil
 }
@@ -277,10 +288,6 @@ func (broker *ServiceBroker) _startHeartbeatTimer() {
 			case <-time.After(time.Second * 3):
 				broker._broadcastHeartbeat()
 				broker._checkNodesTimeout()
-				//CHECK nodesStatus
-
-				// case <-time.After(time.Second * 15):
-				// 	println("10s timer")
 			}
 		}
 	}()
@@ -289,7 +296,7 @@ func (broker *ServiceBroker) _startHeartbeatTimer() {
 func (broker *ServiceBroker) _checkNodesTimeout() {
 	nowTime := time.Now()
 	broker.nodesStatus.Range(func(key, value interface{}) bool {
-		nodeStatusObj, ok := value.(nodeStatus)
+		nodeStatusObj, ok := value.(nodeStatusStruct)
 		if ok {
 			oldTime := nodeStatusObj.LastHeartbeatTime
 			if nowTime.Sub(oldTime) >= time.Second*6 {
@@ -308,7 +315,7 @@ func (broker *ServiceBroker) _checkNodesTimeout() {
 //CallOptions ...
 type CallOptions struct {
 	Timeout    time.Duration
-	RetryCount uint64
+	RetryCount uint64 //not support now
 	NodeID     string
 	Meta       interface{}
 }
@@ -324,10 +331,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	var _opts = opts
 	if _opts == nil {
 		_opts = &CallOptions{
-			Timeout:    time.Second * 5,
-			RetryCount: 0,
-			NodeID:     "",
-			Meta:       nil,
+			Timeout: time.Second * 5,
 		}
 	}
 
@@ -360,7 +364,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	for nodeID := range _oldNodes {
 		nodeStatusData, ok := broker.nodesStatus.Load(nodeID)
 		if ok {
-			nodeStatusObj, ok2 := nodeStatusData.(nodeStatus)
+			nodeStatusObj, ok2 := nodeStatusData.(nodeStatusStruct)
 			if ok2 && nodeStatusObj.Status == nodeStatusOnline {
 				onlineNodes = append(onlineNodes, nodeStatusObj.NodeID)
 			}
@@ -396,7 +400,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	log.Info("Call topic: ", "MOL.REQ."+chooseNodeID)
 	log.Info("Call data: ", string(sendData))
 
-	waitResponseObj := &waitResponse{
+	waitResponseObj := &waitResponseStruct{
 		ID:        requestObj.ID,
 		SendTime:  time.Now(),
 		Timeout:   _opts.Timeout,
@@ -523,31 +527,31 @@ func (broker *ServiceBroker) _onRequest(msg *nats.Msg) {
 	}()
 }
 func (broker *ServiceBroker) _onResponse(msg *nats.Msg) {
-	// go func() {
+	go func() {
 
-	log.Info("NATS _onResponse: ", string(msg.Data))
-	jsonObj := &protocol.MsResponse{}
-	err := jsoniter.Unmarshal(msg.Data, jsonObj)
-	if err != nil {
-		log.Error("NATS _onResponse parse err: ", err)
-		return
-	}
-	waitResponseObjData, ok := broker.waitRequests.Load(jsonObj.ID)
-	if !ok {
-		log.Error("NATS _onResponse can't find request ID : ", jsonObj.ID)
-		return
-	}
-	waitResponseObj, ok := waitResponseObjData.(*waitResponse)
-	if !ok {
-		log.Warn("Call can't find node err interface to waitResponse")
-		return
-	}
-	waitResponseObj.Response = jsonObj
-	waitResponseObj.WaitChan <- 1
+		log.Info("NATS _onResponse: ", string(msg.Data))
+		jsonObj := &protocol.MsResponse{}
+		err := jsoniter.Unmarshal(msg.Data, jsonObj)
+		if err != nil {
+			log.Error("NATS _onResponse parse err: ", err)
+			return
+		}
+		waitResponseObjData, ok := broker.waitRequests.Load(jsonObj.ID)
+		if !ok {
+			log.Error("NATS _onResponse can't find request ID : ", jsonObj.ID)
+			return
+		}
+		waitResponseObj, ok := waitResponseObjData.(*waitResponseStruct)
+		if !ok {
+			log.Warn("Call can't find node err interface to waitResponseStruct")
+			return
+		}
+		waitResponseObj.Response = jsonObj
+		waitResponseObj.WaitChan <- 1
 
-	return
+		return
 
-	// }()
+	}()
 }
 func (broker *ServiceBroker) _onDiscover(msg *nats.Msg) {
 	log.Info("NATS _onDiscover: ", string(msg.Data))
@@ -600,7 +604,7 @@ func (broker *ServiceBroker) _onHeartbeat(msg *nats.Msg) {
 		log.Error("parse MsHeartbeat error:", err)
 		return
 	}
-	nodeStatusObj := nodeStatus{
+	nodeStatusObj := nodeStatusStruct{
 		NodeID:            jsonObj.Sender,
 		LastHeartbeatTime: time.Now(),
 		Status:            nodeStatusOnline,
@@ -647,7 +651,7 @@ func (broker *ServiceBroker) _handlerNodeInfo(info *protocol.MsInfoNode) {
 		}
 	}
 
-	nodeStatusObj := nodeStatus{
+	nodeStatusObj := nodeStatusStruct{
 		NodeID:            nodeID,
 		LastHeartbeatTime: time.Now(),
 		Status:            nodeStatusOnline,
@@ -666,7 +670,7 @@ func (broker *ServiceBroker) _genselfInfo() string {
 	broker.selfInfo = nodeInfo
 	nodeInfo.Ver = "2"
 	nodeInfo.Client.Type = "go"
-	nodeInfo.Client.Version = "0.1.0"
+	nodeInfo.Client.Version = MoleculerGoLibVersion
 	nodeInfo.Client.LangVersion = "1.9.0"
 	nodeInfo.Sender = broker.config.NodeID
 	nodeInfo.IPList = make([]string, 0, 5)
@@ -703,54 +707,4 @@ func (broker *ServiceBroker) _genselfInfo() string {
 	broker.selfInfoString = string(jsonBytes)
 
 	return broker.selfInfoString
-}
-
-func init() {
-	initLog()
-}
-
-var log *logrus.Logger
-
-func initLog() {
-	log = logrus.New()
-	log.Formatter = &logrus.TextFormatter{
-		FullTimestamp: true,
-		//		TimestampFormat:time.RFC3339Nano,
-		//TimestampFormat: "2006-01-02T15:04:05.000000000",
-		TimestampFormat: "01-02 15:04:05.000",
-	}
-	// log.SetLevel(logrus.DebugLevel)
-	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
-
-	// //	// Log as JSON instead of the default ASCII formatter.
-	// log.SetFormatter(&logrus.TextFormatter{
-	// 	FullTimestamp: true,
-	// 	//		TimestampFormat:time.RFC3339Nano,
-	// 	//TimestampFormat: "2006-01-02T15:04:05.000000000",
-	// 	TimestampFormat: "01-02 15:04:05.000",
-	// })
-	// log.SetLevel(logrus.DebugLevel)
-	// log.WithFields(logrus.Fields{"package": "moleculer", "file": "go"})
-	// log.Logger.SetLevel(logrus.DebugLevel)
-	//
-	//	// Output to stderr instead of stdout, could also be a file.
-	//	logrus.SetOutput(os.Stderr)
-	//
-	//	// Only log the warning severity or above.
-	//	logrus.SetLevel(logrus.WarnLevel)
-}
-
-//Create create a moleculer object
-func Create() {
-
-}
-
-// Fn1 : just a test function
-func Fn1(a int) int {
-	// log.WithFields(log.Fields{
-	// 	"class": "moleculer",
-	// }).Info("Fn1 a = [%d]", a)
-	// log.Info("AAAA")
-	log.Printf("Fn1 a = [%d]", a)
-	return a + 1
 }
