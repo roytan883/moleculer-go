@@ -4,5 +4,5 @@ package protocol
 type MsPing struct {
 	Ver    string `json:"ver"`
 	Sender string `json:"sender"`
-	Time   int64  `json:"time"`
+	Time   uint64 `json:"time"`
 }

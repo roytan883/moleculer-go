@@ -14,11 +14,16 @@ import (
 	"github.com/roytan883/moleculer-go/protocol"
 
 	jsoniter "github.com/json-iterator/go"
-	stringsUtils "github.com/shomali11/util/strings"
 )
 
-//MoleculerGoLibVersion 0.1.0
-const MoleculerGoLibVersion = "0.1.0"
+const (
+	//MoleculerLibVersion 0.1.0
+	MoleculerLibVersion = "0.1.0"
+	//MoleculerProtocolVersion 0.1.0
+	MoleculerProtocolVersion = "2"
+
+	natsNodeHeartbeatTimeout = time.Second * 6
+)
 
 func init() {
 	initLog()
@@ -47,10 +52,11 @@ type Service struct {
 
 //ServiceBrokerConfig ...
 type ServiceBrokerConfig struct {
-	NatsHost []string
-	NodeID   string
-	LogLevel logrus.Level
-	Services map[string]Service
+	NatsHost              []string
+	NodeID                string
+	LogLevel              logrus.Level  //default 0, means "PanicLevel"
+	DefaultRequestTimeout time.Duration //default 3s
+	Services              map[string]Service
 }
 
 //ServiceBroker ...
@@ -93,6 +99,12 @@ type waitResponseStruct struct {
 
 //NewServiceBroker ...
 func NewServiceBroker(config *ServiceBrokerConfig) (*ServiceBroker, error) {
+
+	if stringIsEmpty(config.NodeID) {
+		log.Error("Can't use empty NodeID")
+		panic("Can't use empty NodeID")
+	}
+
 	serviceBroker := &ServiceBroker{
 		con:    nil,
 		config: config,
@@ -187,7 +199,7 @@ func (broker *ServiceBroker) Start() (err error) {
 	}
 
 	// for _, service := range broker.config.Services {
-	// 	if strings.IsNotEmpty(service.ServiceName) {
+	// 	if stringIsNotEmpty(service.ServiceName) {
 	// 		var topic = "MOL.REQB." + service.ServiceName + ".>"
 	// 		_, err = con.Subscribe(topic, broker._onRequest)
 	// 		if err != nil {
@@ -299,13 +311,13 @@ func (broker *ServiceBroker) _checkNodesTimeout() {
 		nodeStatusObj, ok := value.(nodeStatusStruct)
 		if ok {
 			oldTime := nodeStatusObj.LastHeartbeatTime
-			if nowTime.Sub(oldTime) >= time.Second*6 {
-				// broker.nodesStatus.Delete(key)
-				if nodeStatusObj.Status != nodeStatusOffline {
-					log.Warn("node timeout, set nodeStatusOffline: ", key)
-					nodeStatusObj.Status = nodeStatusOffline
-					broker.nodesStatus.Store(key, nodeStatusObj)
-				}
+			if nowTime.Sub(oldTime) >= natsNodeHeartbeatTimeout {
+				broker.nodesStatus.Delete(key)
+				// if nodeStatusObj.Status != nodeStatusOffline {
+				// 	log.Warn("node timeout, set nodeStatusOffline: ", key)
+				// 	nodeStatusObj.Status = nodeStatusOffline
+				// 	broker.nodesStatus.Store(key, nodeStatusObj)
+				// }
 			}
 		}
 		return true
@@ -331,8 +343,11 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	var _opts = opts
 	if _opts == nil {
 		_opts = &CallOptions{
-			Timeout: time.Second * 5,
+			Timeout: broker.config.DefaultRequestTimeout,
 		}
+	}
+	if _opts.Timeout <= 0 {
+		_opts.Timeout = time.Second * 3
 	}
 
 	oldNodes, ok := broker.actionNodes.Load(action)
@@ -347,7 +362,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	}
 	log.Info("Call _oldNodes = ", _oldNodes)
 	var chooseNodeID = ""
-	if stringsUtils.IsNotEmpty(_opts.NodeID) {
+	if stringIsNotEmpty(_opts.NodeID) {
 		_, ok := _oldNodes[_opts.NodeID]
 		if !ok {
 			log.Warn("Call can't find dst node: ", _opts.NodeID)
@@ -380,7 +395,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	chooseNodeID = onlineNodes[chooseIndex]
 
 	requestObj := &protocol.MsRequest{
-		Ver:       "2",
+		Ver:       MoleculerProtocolVersion,
 		Sender:    broker.config.NodeID,
 		ID:        nuid.New().Next(),
 		Action:    action,
@@ -438,7 +453,7 @@ func (broker *ServiceBroker) Broadcast(event string, data []byte) (err error) {
 
 func (broker *ServiceBroker) _broadcastDiscover() {
 	sendData, err := jsoniter.Marshal(&protocol.MsDiscover{
-		Ver:    "2",
+		Ver:    MoleculerProtocolVersion,
 		Sender: broker.config.NodeID,
 	})
 	if err != nil {
@@ -457,7 +472,7 @@ func (broker *ServiceBroker) _broadcastInfo() {
 func (broker *ServiceBroker) _broadcastHeartbeat() {
 	// log.Info("_broadcastHeartbeat")
 	sendData, err := jsoniter.Marshal(&protocol.MsHeartbeat{
-		Ver:    "2",
+		Ver:    MoleculerProtocolVersion,
 		Sender: broker.config.NodeID,
 		CPU:    0,
 	})
@@ -564,8 +579,9 @@ func (broker *ServiceBroker) _onDiscoverTargetted(msg *nats.Msg) {
 	err := jsoniter.Unmarshal(msg.Data, jsonObj)
 	if err != nil {
 		log.Error("NATS _onDiscoverTargetted err: ", err)
+		return
 	}
-	if stringsUtils.IsNotEmpty(jsonObj.Sender) {
+	if stringIsNotEmpty(jsonObj.Sender) {
 		log.Info("NATS _onDiscoverTargetted send selfInfo to : ", "MOL.INFO."+jsonObj.Sender)
 		infoString := broker._genselfInfo()
 		broker.con.Publish("MOL.INFO."+jsonObj.Sender, []byte(infoString))
@@ -614,6 +630,24 @@ func (broker *ServiceBroker) _onHeartbeat(msg *nats.Msg) {
 }
 func (broker *ServiceBroker) _onPing(msg *nats.Msg) {
 	log.Info("NATS _onPing: ", string(msg.Data))
+	jsonObj := &protocol.MsPing{}
+	err := jsoniter.Unmarshal(msg.Data, jsonObj)
+	if err != nil {
+		log.Error("NATS _onPing err: ", err)
+		return
+	}
+	if stringIsNotEmpty(jsonObj.Sender) {
+		sendData, err := jsoniter.Marshal(&protocol.MsPong{
+			Ver:     MoleculerProtocolVersion,
+			Sender:  broker.config.NodeID,
+			Time:    jsonObj.Time,
+			Arrived: uint64(time.Now().UnixNano() / 1e6),
+		})
+		if err != nil {
+			panic(err)
+		}
+		broker.con.Publish("MOL.PONG."+jsonObj.Sender, sendData)
+	}
 	return
 }
 func (broker *ServiceBroker) _onPingTargetted(msg *nats.Msg) {
@@ -626,6 +660,15 @@ func (broker *ServiceBroker) _onPong(msg *nats.Msg) {
 }
 func (broker *ServiceBroker) _onDisconnect(msg *nats.Msg) {
 	log.Info("NATS _onDisconnect: ", string(msg.Data))
+	jsonObj := &protocol.MsDiscover{}
+	err := jsoniter.Unmarshal(msg.Data, jsonObj)
+	if err != nil {
+		log.Error("NATS _onDisconnect err: ", err)
+		return
+	}
+
+	broker.nodesStatus.Delete(jsonObj.Sender)
+
 	return
 }
 
@@ -662,15 +705,15 @@ func (broker *ServiceBroker) _handlerNodeInfo(info *protocol.MsInfoNode) {
 }
 
 func (broker *ServiceBroker) _genselfInfo() string {
-	if stringsUtils.IsNotEmpty(broker.selfInfoString) {
+	if stringIsNotEmpty(broker.selfInfoString) {
 		return broker.selfInfoString
 	}
 	log.Info("_genselfInfo: ")
 	var nodeInfo = &protocol.MsInfoNode{}
 	broker.selfInfo = nodeInfo
-	nodeInfo.Ver = "2"
+	nodeInfo.Ver = MoleculerProtocolVersion
 	nodeInfo.Client.Type = "go"
-	nodeInfo.Client.Version = MoleculerGoLibVersion
+	nodeInfo.Client.Version = MoleculerLibVersion
 	nodeInfo.Client.LangVersion = "1.9.0"
 	nodeInfo.Sender = broker.config.NodeID
 	nodeInfo.IPList = make([]string, 0, 5)
@@ -707,4 +750,24 @@ func (broker *ServiceBroker) _genselfInfo() string {
 	broker.selfInfoString = string(jsonBytes)
 
 	return broker.selfInfoString
+}
+
+// StringIsEmpty returns true if the string is empty
+func stringIsEmpty(text string) bool {
+	return len(text) == 0
+}
+
+// StringIsNotEmpty returns true if the string is not empty
+func stringIsNotEmpty(text string) bool {
+	return !stringIsEmpty(text)
+}
+
+// StringIsBlank returns true if the string is blank (all whitespace)
+func stringIsBlank(text string) bool {
+	return len(strings.TrimSpace(text)) == 0
+}
+
+// StringIsNotBlank returns true if the string is not blank
+func stringIsNotBlank(text string) bool {
+	return !stringIsBlank(text)
 }

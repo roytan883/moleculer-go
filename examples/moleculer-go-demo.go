@@ -156,21 +156,21 @@ func main() {
 		// log.Info("broker.Call err2: ", err2)
 	})
 
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-time.After(time.Second * 3):
-	// 			res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
-	// 				// res2, err2 := broker.Call("pushConnector.test1", map[string]interface{}{
-	// 				"a": 111,
-	// 				"b": "abc",
-	// 				"c": true,
-	// 			}, nil)
-	// 			log.Info("broker.Call res2: ", res2)
-	// 			log.Info("broker.Call err2: ", err2)
-	// 		}
-	// 	}
-	// }()
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second * 3):
+				// res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+				res2, err2 := broker.Call("pushConnector.test1", map[string]interface{}{
+					"a": 111,
+					"b": "abc",
+					"c": true,
+				}, nil)
+				log.Info("broker.Call res2: ", res2)
+				log.Info("broker.Call err2: ", err2)
+			}
+		}
+	}()
 
 	waitExit()
 
