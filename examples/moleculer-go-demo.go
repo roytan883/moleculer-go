@@ -60,11 +60,12 @@ func waitExit() {
 	log.Info("waitExit for SIGINT/SIGTERM ...")
 	<-done
 
-	log.Warn("=================== exit rt-go-api-framework =================== ")
+	log.Warn("=================== exit start =================== ")
 	if pBroker != nil {
 		pBroker.Stop()
 	}
 	time.Sleep(time.Second * 1)
+	log.Warn("=================== exit end   =================== ")
 	os.Exit(0)
 }
 
@@ -90,12 +91,9 @@ func onEventBBB(req *protocol.MsRequest) *protocol.MsResponse {
 	return &protocol.MsResponse{}
 }
 
+//go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
 func main() {
 	log.Info("CPU = ", runtime.NumCPU())
-
-	// for index := 0; index < 100; index++ {
-	// 	log.Info(rand.Intn(2))
-	// }
 
 	// return
 	var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
@@ -111,10 +109,6 @@ func main() {
 
 	var hosts = strings.Split(*urls, ",")
 	log.Printf("hosts : '%v'\n", hosts)
-
-	// func fn1(params interface{}) (int, error) {
-	// 	return 111, nil
-	// }
 
 	service := moleculer.Service{
 		ServiceName: "demo",
@@ -140,55 +134,38 @@ func main() {
 	broker.Start()
 
 	go time.AfterFunc(time.Second*3, func() {
-		res, err := broker.Call("pushConnector.test1", map[string]interface{}{
-			"a": 111,
-			"b": "abc",
-			"c": true,
-		}, nil)
-		log.Info("broker.Call res: ", res)
-		log.Info("broker.Call err: ", err)
-		// res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+		// res, err := broker.Call("pushConnector.test1", map[string]interface{}{
 		// 	"a": 111,
 		// 	"b": "abc",
 		// 	"c": true,
 		// }, nil)
-		// log.Info("broker.Call res2: ", res2)
-		// log.Info("broker.Call err2: ", err2)
+		// log.Info("broker.Call res: ", res)
+		// log.Info("broker.Call err: ", err)
+		res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+			"a": 111,
+			"b": "abc",
+			"c": true,
+		}, nil)
+		log.Info("broker.Call res2: ", res2)
+		log.Info("broker.Call err2: ", err2)
 	})
 
 	go func() {
 		for {
 			select {
 			case <-time.After(time.Second * 3):
-				// res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
-				res2, err2 := broker.Call("pushConnector.test1", map[string]interface{}{
+				res3, err3 := broker.Call("demo.fnAAA", map[string]interface{}{
+					// res3, err3 := broker.Call("pushConnector.test1", map[string]interface{}{
 					"a": 111,
 					"b": "abc",
 					"c": true,
 				}, nil)
-				log.Info("broker.Call res2: ", res2)
-				log.Info("broker.Call err2: ", err2)
+				log.Info("broker.Call res3: ", res3)
+				log.Info("broker.Call err3: ", err3)
 			}
 		}
 	}()
 
 	waitExit()
 
-	// nc, err := nats.Connect(*urls)
-	// if err != nil {
-	// 	log.Fatalf("Can't connect: %v\n", err)
-	// }
-	// defer nc.Close()
-	// subj, payload := args[0], []byte(args[1])
-
-	// msg, err := nc.Request(subj, []byte(payload), 100*time.Millisecond)
-	// if err != nil {
-	// 	if nc.LastError() != nil {
-	// 		log.Fatalf("Error in Request: %v\n", nc.LastError())
-	// 	}
-	// 	log.Fatalf("Error in Request: %v\n", err)
-	// }
-
-	// log.Printf("Published [%s] : '%s'\n", subj, payload)
-	// log.Printf("Received [%v] : '%s'\n", msg.Subject, string(msg.Data))
 }
