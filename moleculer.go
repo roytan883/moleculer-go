@@ -3,6 +3,7 @@ package moleculer
 import (
 	"errors"
 	"math/rand"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -15,8 +16,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	stringsUtils "github.com/shomali11/util/strings"
 )
-
-var log *logrus.Entry
 
 //CallbackFunc ...
 type CallbackFunc func(req *protocol.MsRequest) *protocol.MsResponse
@@ -32,6 +31,7 @@ type Service struct {
 type ServiceBrokerConfig struct {
 	NatsHost []string
 	NodeID   string
+	LogLevel logrus.Level
 	Services map[string]Service
 }
 
@@ -114,6 +114,16 @@ func NewServiceBroker(config *ServiceBrokerConfig) (*ServiceBroker, error) {
 //Start ...
 func (broker *ServiceBroker) Start() (err error) {
 
+	//at least use two logic cpu avoid block process
+	oldCPUs := runtime.GOMAXPROCS(-1)
+	if oldCPUs < 2 {
+		log.Warn("Set GOMAXPROCS CPU = 2")
+		runtime.GOMAXPROCS(2)
+	}
+
+	//set LogLevel
+	log.SetLevel(broker.config.LogLevel)
+
 	// jsoniter.Marshal(&data)
 
 	// value := gjson.Get(json, "name.last")
@@ -124,9 +134,11 @@ func (broker *ServiceBroker) Start() (err error) {
 		return
 	}
 	natsOpts := nats.DefaultOptions
+	//set Name if too long will lead nats-top can't show all messages
+	//natsOpts.Name = broker.config.NodeID
 	natsOpts.AllowReconnect = true
-	natsOpts.ReconnectWait = 2 * time.Second            //2s
-	natsOpts.MaxReconnect = 30 * 60 * 24 * 30 * 12 * 10 //10 years
+	natsOpts.ReconnectWait = time.Second * 2 //2s
+	natsOpts.MaxReconnect = -1               //If negative, then it will never give up trying to reconnect.
 	natsOpts.Servers = broker.config.NatsHost
 	con, err := natsOpts.Connect()
 	if err != nil {
@@ -366,7 +378,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 	requestObj := &protocol.MsRequest{
 		Ver:       "2",
 		Sender:    broker.config.NodeID,
-		ID:        nuid.Next(),
+		ID:        nuid.New().Next(),
 		Action:    action,
 		Params:    params,
 		Meta:      _opts.Meta,
@@ -469,45 +481,50 @@ func _getServiceAndAction(str string) (string, string, error) {
 }
 
 func (broker *ServiceBroker) _onRequest(msg *nats.Msg) {
-	log.Info("NATS _onRequest: ", string(msg.Data))
-	jsonObj := &protocol.MsRequest{}
-	err := jsoniter.Unmarshal(msg.Data, jsonObj)
-	if err != nil {
-		log.Error("NATS _onRequest parse err: ", err)
-		return
-	}
-	serviceName, actionName, errParse := _getServiceAndAction(jsonObj.Action)
-	if errParse != nil {
-		log.Error("NATS _onRequest find action err: ", errParse)
-		return
-	}
-	service, ok := broker.config.Services[serviceName]
-	if !ok {
-		log.Error("NATS _onRequest find service err: ", serviceName)
-		return
-	}
-	action, ok2 := service.Actions[actionName]
-	if !ok2 {
-		log.Error("NATS _onRequest find action err: ", actionName)
-		return
-	}
-	jsonRes := action(jsonObj)
-	jsonRes.Ver = jsonObj.Ver
-	jsonRes.Sender = broker.config.NodeID
-	jsonRes.ID = jsonObj.ID
-	jsonRes.Success = true
-	sendData, err3 := jsoniter.Marshal(jsonRes)
-	if err3 != nil {
-		log.Error("NATS _onRequest Marshal jsonRes err: ", err3)
-		return
-	}
-	log.Info("NATS _onRequest replay to : ", "MOL.RES."+jsonObj.Sender)
-	log.Info("NATS _onRequest sendData : ", string(sendData))
-	broker.con.Publish("MOL.RES."+jsonObj.Sender, sendData)
+	go func() {
+		log.Info("NATS _onRequest: ", string(msg.Data))
+		jsonObj := &protocol.MsRequest{}
+		err := jsoniter.Unmarshal(msg.Data, jsonObj)
+		if err != nil {
+			log.Error("NATS _onRequest parse err: ", err)
+			return
+		}
+		serviceName, actionName, errParse := _getServiceAndAction(jsonObj.Action)
+		if errParse != nil {
+			log.Error("NATS _onRequest find action err: ", errParse)
+			return
+		}
+		service, ok := broker.config.Services[serviceName]
+		if !ok {
+			log.Error("NATS _onRequest find service err: ", serviceName)
+			return
+		}
+		action, ok2 := service.Actions[actionName]
+		if !ok2 {
+			log.Error("NATS _onRequest find action err: ", actionName)
+			return
+		}
+		jsonRes := action(jsonObj)
+		jsonRes.Ver = jsonObj.Ver
+		jsonRes.Sender = broker.config.NodeID
+		jsonRes.ID = jsonObj.ID
+		jsonRes.Success = true
+		sendData, err3 := jsoniter.Marshal(jsonRes)
+		if err3 != nil {
+			log.Error("NATS _onRequest Marshal jsonRes err: ", err3)
+			return
+		}
+		log.Info("NATS _onRequest replay to : ", "MOL.RES."+jsonObj.Sender)
+		log.Info("NATS _onRequest sendData : ", string(sendData))
+		broker.con.Publish("MOL.RES."+jsonObj.Sender, sendData)
 
-	return
+		return
+
+	}()
 }
 func (broker *ServiceBroker) _onResponse(msg *nats.Msg) {
+	// go func() {
+
 	log.Info("NATS _onResponse: ", string(msg.Data))
 	jsonObj := &protocol.MsResponse{}
 	err := jsoniter.Unmarshal(msg.Data, jsonObj)
@@ -529,6 +546,8 @@ func (broker *ServiceBroker) _onResponse(msg *nats.Msg) {
 	waitResponseObj.WaitChan <- 1
 
 	return
+
+	// }()
 }
 func (broker *ServiceBroker) _onDiscover(msg *nats.Msg) {
 	log.Info("NATS _onDiscover: ", string(msg.Data))
@@ -690,16 +709,29 @@ func init() {
 	initLog()
 }
 
+var log *logrus.Logger
+
 func initLog() {
-	//	// Log as JSON instead of the default ASCII formatter.
-	logrus.SetFormatter(&logrus.TextFormatter{
+	log = logrus.New()
+	log.Formatter = &logrus.TextFormatter{
 		FullTimestamp: true,
 		//		TimestampFormat:time.RFC3339Nano,
 		//TimestampFormat: "2006-01-02T15:04:05.000000000",
 		TimestampFormat: "01-02 15:04:05.000",
-	})
-	logrus.SetLevel(logrus.DebugLevel)
-	log = logrus.WithFields(logrus.Fields{"package": "moleculer", "file": "go"})
+	}
+	// log.SetLevel(logrus.DebugLevel)
+	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
+
+	// //	// Log as JSON instead of the default ASCII formatter.
+	// log.SetFormatter(&logrus.TextFormatter{
+	// 	FullTimestamp: true,
+	// 	//		TimestampFormat:time.RFC3339Nano,
+	// 	//TimestampFormat: "2006-01-02T15:04:05.000000000",
+	// 	TimestampFormat: "01-02 15:04:05.000",
+	// })
+	// log.SetLevel(logrus.DebugLevel)
+	// log.WithFields(logrus.Fields{"package": "moleculer", "file": "go"})
+	// log.Logger.SetLevel(logrus.DebugLevel)
 	//
 	//	// Output to stderr instead of stdout, could also be a file.
 	//	logrus.SetOutput(os.Stderr)

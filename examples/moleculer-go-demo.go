@@ -4,16 +4,31 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	logrus "github.com/Sirupsen/logrus"
 
 	nats "github.com/nats-io/go-nats"
 	moleculer "github.com/roytan883/moleculer"
 	"github.com/roytan883/moleculer/protocol"
 )
+
+var log *logrus.Logger
+
+func init() {
+	log = logrus.New()
+	log.Formatter = &logrus.TextFormatter{
+		FullTimestamp: true,
+		//		TimestampFormat:time.RFC3339Nano,
+		//TimestampFormat: "2006-01-02T15:04:05.000000000",
+		TimestampFormat: "01-02 15:04:05.000",
+	}
+	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
+	log.SetLevel(logrus.WarnLevel)
+}
 
 var pBroker *moleculer.ServiceBroker
 
@@ -75,6 +90,8 @@ func onEventBBB(req *protocol.MsRequest) *protocol.MsResponse {
 }
 
 func main() {
+	log.Info("CPU = ", runtime.NumCPU())
+
 	// for index := 0; index < 100; index++ {
 	// 	log.Info(rand.Intn(2))
 	// }
@@ -109,6 +126,7 @@ func main() {
 	config := &moleculer.ServiceBrokerConfig{
 		NatsHost: hosts,
 		NodeID:   "moleculer-go-demo",
+		LogLevel: logrus.DebugLevel,
 		Services: make(map[string]moleculer.Service),
 	}
 	config.Services["demo"] = service
@@ -137,21 +155,21 @@ func main() {
 		// log.Info("broker.Call err2: ", err2)
 	})
 
-	go func() {
-		for {
-			select {
-			case <-time.After(time.Second * 3):
-				res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
-					// res2, err2 := broker.Call("pushConnector.test1", map[string]interface{}{
-					"a": 111,
-					"b": "abc",
-					"c": true,
-				}, nil)
-				log.Info("broker.Call res2: ", res2)
-				log.Info("broker.Call err2: ", err2)
-			}
-		}
-	}()
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-time.After(time.Second * 3):
+	// 			res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+	// 				// res2, err2 := broker.Call("pushConnector.test1", map[string]interface{}{
+	// 				"a": 111,
+	// 				"b": "abc",
+	// 				"c": true,
+	// 			}, nil)
+	// 			log.Info("broker.Call res2: ", res2)
+	// 			log.Info("broker.Call err2: ", err2)
+	// 		}
+	// 	}
+	// }()
 
 	waitExit()
 
