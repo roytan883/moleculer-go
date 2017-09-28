@@ -19,20 +19,20 @@ go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
 ```
 > output:
 ```
-INFO[09-28 14:27:20.126885] broker.Call demoService.actionA start
-INFO[09-28 14:27:20.126885] run actionA, req.Params = map[arg1:aaa arg2:123]
-INFO[09-28 14:27:20.127887] broker.Call demoService.actionA end, res: map[res2:123 res1:AAA]
-INFO[09-28 14:27:20.127887] broker.Call demoService.actionA end, err: <nil>
-INFO[09-28 14:27:20.127887] broker.Call demoService.actionB start
-INFO[09-28 14:27:20.128885] run actionB, req.Params = map[arg1:bbb arg2:456]
-INFO[09-28 14:27:20.128885] broker.Call demoService.actionB end, res: map[res1:BBB res2:456]
-INFO[09-28 14:27:20.128885] broker.Call demoService.actionB end, err: <nil>
-INFO[09-28 14:27:20.128885] broker.Emit user.create start
-INFO[09-28 14:27:20.128885] broker.Emit user.create end, err: <nil>
-INFO[09-28 14:27:20.128885] broker.Emit user.delete start
-INFO[09-28 14:27:20.128885] broker.Broadcast user.delete end, err: <nil>
-INFO[09-28 14:27:20.128885] run onEventUserDelete, req.Data = map[status:delete user:userB]
-INFO[09-28 14:27:20.138889] run onEventUserCreate, req.Data = map[user:userA status:create]
+INFO[09-28 14:34:24.559107] broker.Call demoService.actionA start
+INFO[09-28 14:34:24.560110] run actionA, req.Params = map[arg2:123 arg1:aaa]
+INFO[09-28 14:34:24.561108] broker.Call demoService.actionA end, res: map[res1:AAA res2:123]
+INFO[09-28 14:34:24.561108] broker.Call demoService.actionA end, err: <nil>
+INFO[09-28 14:34:24.561108] broker.Call demoService.actionB start
+INFO[09-28 14:34:24.562110] run actionB, req.Params = map[arg1:bbb arg2:456]
+INFO[09-28 14:34:24.562110] broker.Call demoService.actionB end, res: map[res1:BBB res2:456]
+INFO[09-28 14:34:24.562110] broker.Call demoService.actionB end, err: <nil>
+INFO[09-28 14:34:24.562110] broker.Emit user.create start
+INFO[09-28 14:34:24.562110] broker.Emit user.create end, err: <nil>
+INFO[09-28 14:34:24.563111] broker.Broadcast user.delete start
+INFO[09-28 14:34:24.563111] broker.Broadcast user.delete end, err: <nil>
+INFO[09-28 14:34:24.563111] run onEventUserCreate, req.Data = map[user:userA status:create]
+INFO[09-28 14:34:24.563111] run onEventUserDelete, req.Data = map[user:userB status:delete]
 ```
 
 # Status :

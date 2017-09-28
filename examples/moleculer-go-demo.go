@@ -166,7 +166,7 @@ func main() {
 		})
 		log.Info("broker.Emit user.create end, err: ", err)
 
-		log.Info("broker.Emit user.delete start")
+		log.Info("broker.Broadcast user.delete start")
 		err = broker.Broadcast("user.delete", map[string]interface{}{
 			"user":   "userB",
 			"status": "delete",
