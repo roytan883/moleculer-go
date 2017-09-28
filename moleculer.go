@@ -118,32 +118,33 @@ func NewServiceBroker(config *ServiceBrokerConfig) (*ServiceBroker, error) {
 		stoped: make(chan int, 1),
 	}
 
-	defaultService := Service{
-		ServiceName: "$node",
-		Actions:     make(map[string]RequestHandler),
-		Events:      make(map[string]EventHandler),
-	}
-	defaultService.Actions["$node.list"] = func(req *protocol.MsRequest) (interface{}, error) {
-		log.Info("call $node.list")
-		return nil, nil
-	}
-	defaultService.Actions["$node.services"] = func(req *protocol.MsRequest) (interface{}, error) {
-		log.Info("call $node.services")
-		return nil, nil
-	}
-	defaultService.Actions["$node.actions"] = func(req *protocol.MsRequest) (interface{}, error) {
-		log.Info("call $node.actions")
-		return nil, nil
-	}
-	defaultService.Actions["$node.events"] = func(req *protocol.MsRequest) (interface{}, error) {
-		log.Info("call $node.events")
-		return nil, nil
-	}
-	defaultService.Actions["$node.health"] = func(req *protocol.MsRequest) (interface{}, error) {
-		log.Info("call $node.health")
-		return nil, nil
-	}
-	config.Services["$node"] = defaultService
+	//TODO: implementation $node.xxx
+	// defaultService := Service{
+	// 	ServiceName: "$node",
+	// 	Actions:     make(map[string]RequestHandler),
+	// 	Events:      make(map[string]EventHandler),
+	// }
+	// defaultService.Actions["$node.list"] = func(req *protocol.MsRequest) (interface{}, error) {
+	// 	log.Info("call $node.list")
+	// 	return nil, nil
+	// }
+	// defaultService.Actions["$node.services"] = func(req *protocol.MsRequest) (interface{}, error) {
+	// 	log.Info("call $node.services")
+	// 	return nil, nil
+	// }
+	// defaultService.Actions["$node.actions"] = func(req *protocol.MsRequest) (interface{}, error) {
+	// 	log.Info("call $node.actions")
+	// 	return nil, nil
+	// }
+	// defaultService.Actions["$node.events"] = func(req *protocol.MsRequest) (interface{}, error) {
+	// 	log.Info("call $node.events")
+	// 	return nil, nil
+	// }
+	// defaultService.Actions["$node.health"] = func(req *protocol.MsRequest) (interface{}, error) {
+	// 	log.Info("call $node.health")
+	// 	return nil, nil
+	// }
+	// config.Services["$node"] = defaultService
 
 	return serviceBroker, nil
 }
@@ -408,7 +409,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 		Action:    action,
 		Params:    params,
 		Meta:      _opts.Meta,
-		Timeout:   uint32(_opts.Timeout.Seconds() * 1000),
+		Timeout:   int64(_opts.Timeout.Seconds() * 1000),
 		Level:     1,
 		Metrics:   false,
 		ParentID:  "",
@@ -777,7 +778,7 @@ func (broker *ServiceBroker) _onPing(msg *nats.Msg) {
 			Ver:     MoleculerProtocolVersion,
 			Sender:  broker.config.NodeID,
 			Time:    jsonObj.Time,
-			Arrived: uint64(time.Now().UnixNano() / 1e6),
+			Arrived: getNowMilliseconds(),
 		})
 		if err != nil {
 			log.Error("NATS _onPing Marshal err: ", err)
@@ -935,6 +936,10 @@ func stringIsEmptyOrBlank(text string) bool {
 // stringIsNotEmptyOrBlank returns true if the string is not empty or blank (all whitespace)
 func stringIsNotEmptyOrBlank(text string) bool {
 	return !stringIsEmptyOrBlank(text)
+}
+
+func getNowMilliseconds() int64 {
+	return time.Now().UnixNano() / 1e6
 }
 
 func getLanIP() string {
