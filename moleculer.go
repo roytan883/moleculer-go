@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	//MoleculerLibVersion 0.1.0
-	MoleculerLibVersion = "0.1.0"
+	//MoleculerLibVersion 0.3.0
+	MoleculerLibVersion = "0.3.0"
 	//MoleculerProtocolVersion 0.1.0
 	MoleculerProtocolVersion = "2"
 

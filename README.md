@@ -45,7 +45,9 @@ broker.Call demoService.bench goroutineNum[50] callCount[500000] use[10.052548s]
 
 # Status :
 
-## v0.1.0
+> Not support `REQB` and `EVENTB` right now. Please KEEP `disableBalancer: false` in nodejs moleculer
+
+## v0.3.0
 - [x] MOL.DISCOVER
 - [x] MOL.DISCOVER.`nodeID`
 - [x] MOL.INFO
@@ -60,5 +62,6 @@ broker.Call demoService.bench goroutineNum[50] callCount[500000] use[10.052548s]
 - [x] MOL.PING.`nodeID`
 - [x] MOL.PONG.`nodeID`
 - [x] MOL.DISCONNECT
+- [ ] `internal $node.xxx`
 
 
