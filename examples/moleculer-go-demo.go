@@ -74,16 +74,15 @@ func usage() {
 	log.Fatalf("Usage: moleculer-go-demo [-s server (%s)] \n", nats.DefaultURL)
 }
 
-func fnAAA(req *protocol.MsRequest) *protocol.MsResponse {
+func fnAAA(req *protocol.MsRequest) (interface{}, error) {
 	log.Info("call AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-	res := &protocol.MsResponse{}
 	data := map[string]interface{}{
 		"a": 111,
 		"b": "abc",
 		"c": true,
 	}
-	res.Data = data
-	return res
+	return data, nil
+	// return nil, errors.New("test return error")
 }
 
 func onEventBBB(req *protocol.MsEvent) {

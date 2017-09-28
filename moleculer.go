@@ -43,8 +43,8 @@ func initLog() {
 	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
 }
 
-//RequestHandler ...
-type RequestHandler func(req *protocol.MsRequest) *protocol.MsResponse
+//RequestHandler NOTE that you should not modify req, just return data or error
+type RequestHandler func(req *protocol.MsRequest) (interface{}, error)
 
 //EventHandler ...
 type EventHandler func(req *protocol.MsEvent)
@@ -123,25 +123,25 @@ func NewServiceBroker(config *ServiceBrokerConfig) (*ServiceBroker, error) {
 		Actions:     make(map[string]RequestHandler),
 		Events:      make(map[string]EventHandler),
 	}
-	defaultService.Actions["$node.list"] = func(req *protocol.MsRequest) *protocol.MsResponse {
+	defaultService.Actions["$node.list"] = func(req *protocol.MsRequest) (interface{}, error) {
 		log.Info("call $node.list")
-		return &protocol.MsResponse{}
+		return nil, nil
 	}
-	defaultService.Actions["$node.services"] = func(req *protocol.MsRequest) *protocol.MsResponse {
+	defaultService.Actions["$node.services"] = func(req *protocol.MsRequest) (interface{}, error) {
 		log.Info("call $node.services")
-		return &protocol.MsResponse{}
+		return nil, nil
 	}
-	defaultService.Actions["$node.actions"] = func(req *protocol.MsRequest) *protocol.MsResponse {
+	defaultService.Actions["$node.actions"] = func(req *protocol.MsRequest) (interface{}, error) {
 		log.Info("call $node.actions")
-		return &protocol.MsResponse{}
+		return nil, nil
 	}
-	defaultService.Actions["$node.events"] = func(req *protocol.MsRequest) *protocol.MsResponse {
+	defaultService.Actions["$node.events"] = func(req *protocol.MsRequest) (interface{}, error) {
 		log.Info("call $node.events")
-		return &protocol.MsResponse{}
+		return nil, nil
 	}
-	defaultService.Actions["$node.health"] = func(req *protocol.MsRequest) *protocol.MsResponse {
+	defaultService.Actions["$node.health"] = func(req *protocol.MsRequest) (interface{}, error) {
 		log.Info("call $node.health")
-		return &protocol.MsResponse{}
+		return nil, nil
 	}
 	config.Services["$node"] = defaultService
 
@@ -645,11 +645,23 @@ func (broker *ServiceBroker) _onRequest(msg *nats.Msg) {
 			log.Error("NATS _onRequest find action err: ", actionName)
 			return
 		}
-		jsonRes := action(jsonObj)
+		jsonRes := &protocol.MsResponse{}
+		jsonResData, err := action(jsonObj)
+		if err != nil {
+			jsonRes.Success = false
+			jsonRes.Error = map[string]interface{}{
+				"name":    err.Error(),
+				"message": err.Error(),
+				"nodeID":  broker.config.NodeID,
+			}
+		} else {
+			jsonRes.Success = true
+			jsonRes.Data = jsonResData
+		}
 		jsonRes.Ver = jsonObj.Ver
 		jsonRes.Sender = broker.config.NodeID
 		jsonRes.ID = jsonObj.ID
-		jsonRes.Success = true
+		// jsonRes.Success = true //should set by app layer
 		sendData, err3 := jsoniter.Marshal(jsonRes)
 		if err3 != nil {
 			log.Error("NATS _onRequest Marshal jsonRes err: ", err3)
