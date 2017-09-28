@@ -142,7 +142,7 @@ func main() {
 	broker.Start()
 
 	//test call and emit
-	go time.AfterFunc(time.Second*3, func() {
+	go time.AfterFunc(time.Second*1, func() {
 		log.Info("broker.Call demoService.actionA start")
 		res, err := broker.Call("demoService.actionA", map[string]interface{}{
 			"arg1": "aaa",
