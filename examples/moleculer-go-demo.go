@@ -4,7 +4,6 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -74,56 +73,67 @@ func usage() {
 	log.Fatalf("Usage: moleculer-go-demo [-s server (%s)] \n", nats.DefaultURL)
 }
 
-func fnAAA(req *protocol.MsRequest) (interface{}, error) {
-	log.Info("call AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-	data := map[string]interface{}{
-		"a": 111,
-		"b": "abc",
-		"c": true,
+func createDemoService() moleculer.Service {
+	service := moleculer.Service{
+		ServiceName: "demoService",
+		Actions:     make(map[string]moleculer.RequestHandler),
+		Events:      make(map[string]moleculer.EventHandler),
 	}
-	return data, nil
-	// return nil, errors.New("test return error")
-}
 
-func onEventBBB(req *protocol.MsEvent) {
-	log.Info("call onEventBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
+	//init actions handlers
+	actionA := func(req *protocol.MsRequest) (interface{}, error) {
+		log.Info("run actionA, req.Params = ", req.Params)
+		data := map[string]interface{}{
+			"res1": "AAA",
+			"res2": 123,
+		}
+		return data, nil
+		// return nil, errors.New("test return error in actionA")
+	}
+	actionB := func(req *protocol.MsRequest) (interface{}, error) {
+		log.Info("run actionB, req.Params = ", req.Params)
+		data := map[string]interface{}{
+			"res1": "BBB",
+			"res2": 456,
+		}
+		return data, nil
+		// return nil, errors.New("test return error in actionB")
+	}
+	service.Actions["actionA"] = actionA
+	service.Actions["actionB"] = actionB
+
+	//init listen events handlers
+	onEventUserCreate := func(req *protocol.MsEvent) {
+		log.Info("run onEventUserCreate, req.Data = ", req.Data)
+	}
+	onEventUserDelete := func(req *protocol.MsEvent) {
+		log.Info("run onEventUserDelete, req.Data = ", req.Data)
+	}
+	service.Events["user.create"] = onEventUserCreate
+	service.Events["user.delete"] = onEventUserDelete
+
+	return service
 }
 
 //go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
 func main() {
-	log.Info("CPU = ", runtime.NumCPU())
 
-	// return
+	//get NATS server host
 	var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
-
-	// log.SetFlags(0)
 	flag.Usage = usage
 	flag.Parse()
-
-	// args := flag.Args()
-	// if len(args) < 2 {
-	// 	usage()
-	// }
-
 	var hosts = strings.Split(*urls, ",")
 	log.Printf("hosts : '%v'\n", hosts)
 
-	service := moleculer.Service{
-		ServiceName: "demo",
-		Actions:     make(map[string]moleculer.RequestHandler),
-		Events:      make(map[string]moleculer.EventHandler),
-	}
-	service.Actions["fnAAA"] = fnAAA
-	service.Events["demo.eventB"] = onEventBBB
-
+	//init service and broker
 	config := &moleculer.ServiceBrokerConfig{
 		NatsHost: hosts,
 		NodeID:   "moleculer-go-demo",
-		LogLevel: logrus.DebugLevel,
+		// LogLevel: logrus.DebugLevel,
+		LogLevel: logrus.ErrorLevel,
 		Services: make(map[string]moleculer.Service),
 	}
-	config.Services["demo"] = service
-
+	config.Services["demoService"] = createDemoService()
 	broker, err := moleculer.NewServiceBroker(config)
 	if err != nil {
 		log.Fatalf("NewServiceBroker err: %v\n", err)
@@ -131,53 +141,39 @@ func main() {
 	pBroker = broker
 	broker.Start()
 
+	//test call and emit
 	go time.AfterFunc(time.Second*3, func() {
-		// res, err := broker.Call("pushConnector.test1", map[string]interface{}{
-		// 	"a": 111,
-		// 	"b": "abc",
-		// 	"c": true,
-		// }, nil)
-		// log.Info("broker.Call res: ", res)
-		// log.Info("broker.Call err: ", err)
+		log.Info("broker.Call demoService.actionA start")
+		res, err := broker.Call("demoService.actionA", map[string]interface{}{
+			"arg1": "aaa",
+			"arg2": 123,
+		}, nil)
+		log.Info("broker.Call demoService.actionA end, res: ", res)
+		log.Info("broker.Call demoService.actionA end, err: ", err)
 
-		// res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
-		// 	"a": 111,
-		// 	"b": "abc",
-		// 	"c": true,
-		// }, nil)
-		// log.Info("broker.Call res2: ", res2)
-		// log.Info("broker.Call err2: ", err2)
+		log.Info("broker.Call demoService.actionB start")
+		res, err = broker.Call("demoService.actionB", map[string]interface{}{
+			"arg1": "bbb",
+			"arg2": 456,
+		}, nil)
+		log.Info("broker.Call demoService.actionB end, res: ", res)
+		log.Info("broker.Call demoService.actionB end, err: ", err)
 
-		err := broker.Emit("demo.eventB", map[string]interface{}{
-			"a": 111,
-			"b": "abc",
-			"c": true,
+		log.Info("broker.Emit user.create start")
+		err = broker.Emit("user.create", map[string]interface{}{
+			"user":   "userA",
+			"status": "create",
 		})
-		log.Info("broker.Emit err: ", err)
+		log.Info("broker.Emit user.create end, err: ", err)
 
-		err = broker.Broadcast("demo.eventB", map[string]interface{}{
-			"a": 333,
-			"b": "def",
+		log.Info("broker.Emit user.delete start")
+		err = broker.Broadcast("user.delete", map[string]interface{}{
+			"user":   "userB",
+			"status": "delete",
 		})
-		log.Info("broker.Emit err: ", err)
+		log.Info("broker.Broadcast user.delete end, err: ", err)
 
 	})
-
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-time.After(time.Second * 3):
-	// 			res3, err3 := broker.Call("demo.fnAAA", map[string]interface{}{
-	// 				// res3, err3 := broker.Call("pushConnector.test1", map[string]interface{}{
-	// 				"a": 111,
-	// 				"b": "abc",
-	// 				"c": true,
-	// 			}, nil)
-	// 			log.Info("broker.Call res3: ", res3)
-	// 			log.Info("broker.Call err3: ", err3)
-	// 		}
-	// 	}
-	// }()
 
 	waitExit()
 
