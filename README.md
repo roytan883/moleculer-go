@@ -20,9 +20,19 @@ go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
 # Status :
 
 ## v0.1.0
-- [x] register and discover Moleculer services 
-- [x] send and receive Moleculer heartbeat 
-- [x] sync Moleculer nodes status
-- [x] handle Moleculer REQUEST 
-- [x] send Moleculer REQUEST 
-- [x] Moleculer EVENT
+- [x] MOL.DISCOVER
+- [x] MOL.DISCOVER.<nodeID>
+- [x] MOL.INFO
+- [x] MOL.INFO.<nodeID>
+- [x] MOL.HEARTBEAT
+- [x] MOL.REQ.<nodeID>
+- [ ] MOL.REQB.<action>
+- [x] MOL.RES.<nodeID>
+- [x] MOL.EVENT.<nodeID>
+- [ ] MOL.EVENTB.<event>
+- [x] MOL.PING
+- [x] MOL.PING.<nodeID>
+- [x] MOL.PONG.<nodeID>
+- [x] MOL.DISCONNECT
+
+
