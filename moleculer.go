@@ -409,7 +409,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 		Action:    action,
 		Params:    params,
 		Meta:      _opts.Meta,
-		Timeout:   int64(_opts.Timeout.Seconds() * 1000),
+		Timeout:   float64(_opts.Timeout.Seconds() * 1000),
 		Level:     1,
 		Metrics:   false,
 		ParentID:  "",
