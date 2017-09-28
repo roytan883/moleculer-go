@@ -22,7 +22,8 @@ const (
 	//MoleculerProtocolVersion 0.1.0
 	MoleculerProtocolVersion = "2"
 
-	natsNodeHeartbeatTimeout = time.Second * 6
+	natsNodeHeartbeatInterval = time.Second * 5
+	natsNodeHeartbeatTimeout  = time.Second * 15
 )
 
 func init() {
@@ -40,14 +41,17 @@ func initLog() {
 	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
 }
 
-//CallbackFunc ...
-type CallbackFunc func(req *protocol.MsRequest) *protocol.MsResponse
+//RequestHandler ...
+type RequestHandler func(req *protocol.MsRequest) *protocol.MsResponse
+
+//EventHandler ...
+type EventHandler func(req *protocol.MsEvent)
 
 //Service ...
 type Service struct {
 	ServiceName string
-	Actions     map[string]CallbackFunc
-	Events      map[string]CallbackFunc
+	Actions     map[string]RequestHandler
+	Events      map[string]EventHandler
 }
 
 //ServiceBrokerConfig ...
@@ -69,6 +73,7 @@ type ServiceBroker struct {
 	nodeInfos      sync.Map //map[string]interface{} //original node info
 	nodesStatus    sync.Map //map[string(nodeID)]nodeStatusStruct
 	actionNodes    sync.Map //map[string(actionFullName)]map[string(nodeID)]string(nodeID)
+	eventNodes     sync.Map //map[string(eventFullName)]map[string(nodeID)]string(nodeID)
 	waitRequests   sync.Map //map[string(request.ID)]waitResponseStruct
 }
 
@@ -113,8 +118,8 @@ func NewServiceBroker(config *ServiceBrokerConfig) (*ServiceBroker, error) {
 
 	defaultService := Service{
 		ServiceName: "$node",
-		Actions:     make(map[string]CallbackFunc),
-		Events:      make(map[string]CallbackFunc),
+		Actions:     make(map[string]RequestHandler),
+		Events:      make(map[string]EventHandler),
 	}
 	defaultService.Actions["$node.list"] = func(req *protocol.MsRequest) *protocol.MsResponse {
 		log.Info("call $node.list")
@@ -297,7 +302,7 @@ func (broker *ServiceBroker) _startHeartbeatTimer() {
 				log.Warn("_startHeartbeatTimer stopped")
 				return
 
-			case <-time.After(time.Second * 3):
+			case <-time.After(natsNodeHeartbeatInterval):
 				broker._broadcastHeartbeat()
 				broker._checkNodesTimeout()
 			}
@@ -350,33 +355,33 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 		_opts.Timeout = time.Second * 3
 	}
 
-	oldNodes, ok := broker.actionNodes.Load(action)
+	_referNodes, ok := broker.actionNodes.Load(action)
 	if !ok {
 		log.Warn("Call can't find node for: ", action)
 		return nil, errors.New("Service Not available: " + action)
 	}
-	_oldNodes, ok := oldNodes.(map[string]string)
+	referNodes, ok := _referNodes.(map[string]string)
 	if !ok {
 		log.Warn("Call can't find node err interface to map[string]string")
 		return nil, errors.New("Service Not available: " + action)
 	}
-	log.Info("Call _oldNodes = ", _oldNodes)
+	log.Info("Call referNodes = ", referNodes)
 	var chooseNodeID = ""
 	if stringIsNotEmpty(_opts.NodeID) {
-		_, ok := _oldNodes[_opts.NodeID]
+		_, ok := referNodes[_opts.NodeID]
 		if !ok {
 			log.Warn("Call can't find dst node: ", _opts.NodeID)
 			return nil, errors.New("Service Not available: " + action)
 		}
 		chooseNodeID = _opts.NodeID
 	}
-	nodesCount := len(_oldNodes)
+	nodesCount := len(referNodes)
 	if nodesCount < 1 {
 		log.Warn("Call can't find node in actionNodes map")
 		return nil, errors.New("Service Not available: " + action)
 	}
 	onlineNodes := make([]string, 0)
-	for nodeID := range _oldNodes {
+	for nodeID := range referNodes {
 		nodeStatusData, ok := broker.nodesStatus.Load(nodeID)
 		if ok {
 			nodeStatusObj, ok2 := nodeStatusData.(nodeStatusStruct)
@@ -442,12 +447,113 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 }
 
 //Emit ...
-func (broker *ServiceBroker) Emit(event string, data []byte) (err error) {
+func (broker *ServiceBroker) Emit(event string, params interface{}) (err error) {
+	log.Info("Emit: ", event)
+
+	_referNodes, ok := broker.eventNodes.Load(event)
+	if !ok {
+		log.Warn("Emit can't find node for: ", event)
+		return errors.New("Service Not available: " + event)
+	}
+	referNodes, ok := _referNodes.(map[string]string)
+	if !ok {
+		log.Warn("Emit can't find node err interface to map[string]string")
+		return errors.New("Service Not available: " + event)
+	}
+	log.Info("Emit referNodes = ", referNodes)
+	var chooseNodeID = ""
+	nodesCount := len(referNodes)
+	if nodesCount < 1 {
+		log.Warn("Emit can't find node in eventNodes map")
+		return errors.New("Service Not available: " + event)
+	}
+	onlineNodes := make([]string, 0)
+	for nodeID := range referNodes {
+		nodeStatusData, ok := broker.nodesStatus.Load(nodeID)
+		if ok {
+			nodeStatusObj, ok2 := nodeStatusData.(nodeStatusStruct)
+			if ok2 && nodeStatusObj.Status == nodeStatusOnline {
+				onlineNodes = append(onlineNodes, nodeStatusObj.NodeID)
+			}
+		}
+	}
+	onlineNodesCount := len(onlineNodes)
+	if onlineNodesCount < 1 {
+		log.Warn("Emit can't find node in nodesStatus map with online")
+		return errors.New("Service Not available: " + event)
+	}
+
+	chooseIndex := rand.Intn(onlineNodesCount)
+	chooseNodeID = onlineNodes[chooseIndex]
+
+	requestObj := &protocol.MsEvent{
+		Ver:    MoleculerProtocolVersion,
+		Sender: broker.config.NodeID,
+		Event:  event,
+		Data:   params,
+	}
+	sendData, err := jsoniter.Marshal(requestObj)
+	if err != nil {
+		log.Error("Emit Marshal sendData error: ", err)
+		return errors.New("JSON Marshal Data Error: " + event)
+	}
+	log.Info("Emit topic: ", "MOL.EVENT."+chooseNodeID)
+	log.Info("Emit data: ", string(sendData))
+
+	broker.con.Publish("MOL.EVENT."+chooseNodeID, sendData)
+
 	return nil
 }
 
 //Broadcast ...
-func (broker *ServiceBroker) Broadcast(event string, data []byte) (err error) {
+func (broker *ServiceBroker) Broadcast(event string, params interface{}) (err error) {
+	log.Info("Broadcast: ", event)
+
+	_referNodes, ok := broker.eventNodes.Load(event)
+	if !ok {
+		log.Warn("Broadcast can't find node for: ", event)
+		return errors.New("Service Not available: " + event)
+	}
+	referNodes, ok := _referNodes.(map[string]string)
+	if !ok {
+		log.Warn("Broadcast can't find node err interface to map[string]string")
+		return errors.New("Service Not available: " + event)
+	}
+	log.Info("Broadcast referNodes = ", referNodes)
+	nodesCount := len(referNodes)
+	if nodesCount < 1 {
+		log.Warn("Broadcast can't find node in eventNodes map")
+		return errors.New("Service Not available: " + event)
+	}
+	onlineNodes := make([]string, 0)
+	for nodeID := range referNodes {
+		nodeStatusData, ok := broker.nodesStatus.Load(nodeID)
+		if ok {
+			nodeStatusObj, ok2 := nodeStatusData.(nodeStatusStruct)
+			if ok2 && nodeStatusObj.Status == nodeStatusOnline {
+				onlineNodes = append(onlineNodes, nodeStatusObj.NodeID)
+			}
+		}
+	}
+
+	requestObj := &protocol.MsEvent{
+		Ver:    MoleculerProtocolVersion,
+		Sender: broker.config.NodeID,
+		Event:  event,
+		Data:   params,
+	}
+	sendData, err := jsoniter.Marshal(requestObj)
+	if err != nil {
+		log.Error("Broadcast Marshal sendData error: ", err)
+		return errors.New("JSON Marshal Data Error: " + event)
+	}
+
+	for _, nodeID := range onlineNodes {
+		log.Info("Broadcast topic: ", "MOL.EVENT."+nodeID)
+		log.Info("Broadcast data: ", string(sendData))
+		broker.con.Publish("MOL.EVENT."+nodeID, sendData)
+	}
+
 	return nil
 }
 
@@ -484,19 +590,33 @@ func (broker *ServiceBroker) _broadcastHeartbeat() {
 }
 
 func (broker *ServiceBroker) _onEvent(msg *nats.Msg) {
-	log.Info("NATS _onEvent: ", string(msg.Data))
-	return
+	go func() {
+		log.Info("NATS _onEvent: ", string(msg.Data))
+		jsonObj := &protocol.MsEvent{}
+		err := jsoniter.Unmarshal(msg.Data, jsonObj)
+		if err != nil {
+			log.Error("NATS _onEvent parse err: ", err)
+			return
+		}
+		eventName := jsonObj.Event
+		for _, service := range broker.config.Services {
+			eventHandler, ok := service.Events[eventName]
+			if ok {
+				go eventHandler(jsonObj)
+			}
+		}
+	}()
 }
 
-func _getServiceAndAction(str string) (string, string, error) {
-	actionNames := strings.Split(str, ".")
-	if len(actionNames) != 2 {
-		log.Error("NATS _onRequest find action err: ", actionNames)
-		return "", "", errors.New("get ServiceAndAction name error from string: " + str)
+func _splitNames(str string) (string, string, error) {
+	names := strings.Split(str, ".")
+	if len(names) != 2 {
+		log.Error("NATS _splitNames find names err: ", str)
+		return "", "", errors.New("splitNames names from string: " + str)
 	}
-	var serviceName = actionNames[0]
-	var actionName = actionNames[1]
-	return serviceName, actionName, nil
+	var name1 = names[0]
+	var name2 = names[1]
+	return name1, name2, nil
 }
 
 func (broker *ServiceBroker) _onRequest(msg *nats.Msg) {
@@ -508,7 +628,7 @@ func (broker *ServiceBroker) _onRequest(msg *nats.Msg) {
 			log.Error("NATS _onRequest parse err: ", err)
 			return
 		}
-		serviceName, actionName, errParse := _getServiceAndAction(jsonObj.Action)
+		serviceName, actionName, errParse := _splitNames(jsonObj.Action)
 		if errParse != nil {
 			log.Error("NATS _onRequest find action err: ", errParse)
 			return
@@ -678,6 +798,7 @@ func (broker *ServiceBroker) _handlerNodeInfo(info *protocol.MsInfoNode) {
 	nodeID := info.Sender
 
 	for _, service := range info.Services {
+		//parse and save other node's actions
 		for _, action := range service.Actions {
 			actionName := action.Name
 
@@ -689,6 +810,21 @@ func (broker *ServiceBroker) _handlerNodeInfo(info *protocol.MsInfoNode) {
 				if ok {
 					_oldNodes[nodeID] = nodeID
 					broker.actionNodes.Store(actionName, oldNodes)
+				}
+			}
+		}
+		//parse and save other node's events
+		for _, event := range service.Events {
+			eventName := event.Name
+
+			nodes := map[string]string{}
+			nodes[nodeID] = nodeID
+			oldNodes, loaded := broker.eventNodes.LoadOrStore(eventName, nodes)
+			if loaded {
+				_oldNodes, ok := oldNodes.(map[string]string)
+				if ok {
+					_oldNodes[nodeID] = nodeID
+					broker.eventNodes.Store(eventName, oldNodes)
 				}
 			}
 		}

@@ -25,6 +25,4 @@ go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
 - [x] sync Moleculer nodes status
 - [x] handle Moleculer REQUEST 
 - [x] send Moleculer REQUEST 
-- [ ] Moleculer EVENT
-  - [ ] event
-  - [ ] broadcast
+- [x] Moleculer EVENT

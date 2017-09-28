@@ -86,9 +86,8 @@ func fnAAA(req *protocol.MsRequest) *protocol.MsResponse {
 	return res
 }
 
-func onEventBBB(req *protocol.MsRequest) *protocol.MsResponse {
+func onEventBBB(req *protocol.MsEvent) {
 	log.Info("call onEventBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
-	return &protocol.MsResponse{}
 }
 
 //go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
@@ -112,8 +111,8 @@ func main() {
 
 	service := moleculer.Service{
 		ServiceName: "demo",
-		Actions:     make(map[string]moleculer.CallbackFunc),
-		Events:      make(map[string]moleculer.CallbackFunc),
+		Actions:     make(map[string]moleculer.RequestHandler),
+		Events:      make(map[string]moleculer.EventHandler),
 	}
 	service.Actions["fnAAA"] = fnAAA
 	service.Events["demo.eventB"] = onEventBBB
@@ -141,30 +140,45 @@ func main() {
 		// }, nil)
 		// log.Info("broker.Call res: ", res)
 		// log.Info("broker.Call err: ", err)
-		res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+
+		// res2, err2 := broker.Call("demo.fnAAA", map[string]interface{}{
+		// 	"a": 111,
+		// 	"b": "abc",
+		// 	"c": true,
+		// }, nil)
+		// log.Info("broker.Call res2: ", res2)
+		// log.Info("broker.Call err2: ", err2)
+
+		err := broker.Emit("demo.eventB", map[string]interface{}{
 			"a": 111,
 			"b": "abc",
 			"c": true,
-		}, nil)
-		log.Info("broker.Call res2: ", res2)
-		log.Info("broker.Call err2: ", err2)
+		})
+		log.Info("broker.Emit err: ", err)
+
+		err = broker.Broadcast("demo.eventB", map[string]interface{}{
+			"a": 333,
+			"b": "def",
+		})
+		log.Info("broker.Emit err: ", err)
+
 	})
 
-	go func() {
-		for {
-			select {
-			case <-time.After(time.Second * 3):
-				res3, err3 := broker.Call("demo.fnAAA", map[string]interface{}{
-					// res3, err3 := broker.Call("pushConnector.test1", map[string]interface{}{
-					"a": 111,
-					"b": "abc",
-					"c": true,
-				}, nil)
-				log.Info("broker.Call res3: ", res3)
-				log.Info("broker.Call err3: ", err3)
-			}
-		}
-	}()
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-time.After(time.Second * 3):
+	// 			res3, err3 := broker.Call("demo.fnAAA", map[string]interface{}{
+	// 				// res3, err3 := broker.Call("pushConnector.test1", map[string]interface{}{
+	// 				"a": 111,
+	// 				"b": "abc",
+	// 				"c": true,
+	// 			}, nil)
+	// 			log.Info("broker.Call res3: ", res3)
+	// 			log.Info("broker.Call err3: ", err3)
+	// 		}
+	// 	}
+	// }()
 
 	waitExit()
 
