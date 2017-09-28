@@ -34,7 +34,8 @@ INFO[09-28 14:37:19.583886] broker.Broadcast user.delete end, err: <nil>
 INFO[09-28 14:37:19.583886] run onEventUserCreate, req.Data = map[user:userA status:create]
 INFO[09-28 14:37:19.583886] run onEventUserDelete, req.Data = map[user:userB status:delete]
 ```
-> bench: (ENV: one receiver process and one sender process on WIN10 i7-2600, NATS Server on Ubuntu Server 14.04 i7-4790K)
+# Performance 
+> ENV: one receiver process and one sender process on WIN10(i7-2600), NATS Server on Ubuntu Server 14.04(i7-4790K)
 ```
 broker.Call demoService.bench goroutineNum[1] callCount[10000] use[6.0100862s] req/s[1663] minLatency[999.9µs] maxLatency[5.0021ms]
 broker.Call demoService.bench goroutineNum[5] callCount[50000] use[5.9192496s] req/s[8447] minLatency[999.9µs] maxLatency[10.0015ms]
