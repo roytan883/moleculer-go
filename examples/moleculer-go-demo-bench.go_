@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -138,12 +140,12 @@ func main() {
 	//init service and broker
 	config := &moleculer.ServiceBrokerConfig{
 		NatsHost: hosts,
-		NodeID:   "moleculer-go-demo",
+		NodeID:   "moleculer-go-demo-bench",
 		// LogLevel: logrus.DebugLevel,
 		LogLevel: logrus.ErrorLevel,
 		Services: make(map[string]moleculer.Service),
 	}
-	config.Services["demoService"] = createDemoService()
+	// config.Services["demoService"] = createDemoService()
 	broker, err := moleculer.NewServiceBroker(config)
 	if err != nil {
 		log.Fatalf("NewServiceBroker err: %v\n", err)
@@ -151,38 +153,56 @@ func main() {
 	pBroker = broker
 	broker.Start()
 
+	var callCount uint32
+	var minLatency time.Duration
+	var maxLatency time.Duration
+
+	test10K := func(wg *sync.WaitGroup) {
+		for index := 0; index < 10000; index++ {
+			startTime := time.Now()
+			broker.Call("demoService.bench", map[string]interface{}{
+				"arg1": "aaa",
+				"arg2": 123,
+			}, nil)
+			endTime := time.Now()
+			useTime := endTime.Sub(startTime)
+			if minLatency == 0 {
+				minLatency = useTime
+			}
+			if useTime < minLatency {
+				minLatency = useTime
+			}
+			if maxLatency == 0 {
+				maxLatency = useTime
+			}
+			if useTime > maxLatency {
+				maxLatency = useTime
+			}
+			atomic.AddUint32(&callCount, 1)
+		}
+		wg.Done()
+	}
+
 	//test call and emit
 	go time.AfterFunc(time.Second*1, func() {
-		log.Info("broker.Call demoService.actionA start")
-		res, err := broker.Call("demoService.actionA", map[string]interface{}{
-			"arg1": "aaa",
-			"arg2": 123,
-		}, nil)
-		log.Info("broker.Call demoService.actionA end, res: ", res)
-		log.Info("broker.Call demoService.actionA end, err: ", err)
-
-		log.Info("broker.Call demoService.actionB start")
-		res, err = broker.Call("demoService.actionB", map[string]interface{}{
-			"arg1": "bbb",
-			"arg2": 456,
-		}, nil)
-		log.Info("broker.Call demoService.actionB end, res: ", res)
-		log.Info("broker.Call demoService.actionB end, err: ", err)
-
-		log.Info("broker.Emit user.create start")
-		err = broker.Emit("user.create", map[string]interface{}{
-			"user":   "userA",
-			"status": "create",
-		})
-		log.Info("broker.Emit user.create end, err: ", err)
-
-		log.Info("broker.Broadcast user.delete start")
-		err = broker.Broadcast("user.delete", map[string]interface{}{
-			"user":   "userB",
-			"status": "delete",
-		})
-		log.Info("broker.Broadcast user.delete end, err: ", err)
-
+		log.Info("broker.Call demoService.bench start")
+		startTime := time.Now()
+		wg := sync.WaitGroup{}
+		goroutineNum := 50
+		wg.Add(goroutineNum)
+		for index := 0; index < goroutineNum; index++ {
+			go test10K(&wg)
+		}
+		wg.Wait()
+		endTime := time.Now()
+		useTime := endTime.Sub(startTime)
+		rps := uint(float64(callCount) / float64(useTime.Nanoseconds()) * 1e9)
+		log.Info("broker.Call demoService.bench end")
+		// log.Infof("broker.Call demoService.bench %d maxLatency: %s", callCount, maxLatency)
+		log.Infof("broker.Call demoService.bench goroutineNum[%d] callCount[%d] use[%s] req/s[%d] minLatency[%s] maxLatency[%s]",
+			goroutineNum, callCount, useTime, rps, minLatency, maxLatency)
+		// log.Infof("broker.Call demoService.bench %d minLatency: %s", callCount, minLatency)
+		// log.Infof("broker.Call demoService.bench %d maxLatency: %s", callCount, maxLatency)
 	})
 
 	waitExit()
