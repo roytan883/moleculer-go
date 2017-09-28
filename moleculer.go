@@ -24,6 +24,7 @@ const (
 	//MoleculerProtocolVersion 0.1.0
 	MoleculerProtocolVersion = "2"
 
+	defaultRequestTimeout     = time.Second * 5
 	natsNodeHeartbeatInterval = time.Second * 5
 	natsNodeHeartbeatTimeout  = time.Second * 15
 )
@@ -61,7 +62,7 @@ type ServiceBrokerConfig struct {
 	NatsHost              []string
 	NodeID                string
 	LogLevel              logrus.Level  //default 0, means "PanicLevel"
-	DefaultRequestTimeout time.Duration //default 3s
+	DefaultRequestTimeout time.Duration //default 5s
 	Services              map[string]Service
 }
 
@@ -340,12 +341,7 @@ type CallOptions struct {
 	Meta       interface{}
 }
 
-//Call defaultTimeout 5s
-// Call("demo.fn1", map[string]interface{}{
-// 	"a": 111,
-// 	"b": "abc",
-// 	"c": true,
-// }, nil)
+//Call you can set opts=nil, or custom opts.Timeout (default:5s)
 func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallOptions) (data interface{}, err error) {
 	log.Info("Call: ", action)
 	var _opts = opts
@@ -355,7 +351,7 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 		}
 	}
 	if _opts.Timeout <= 0 {
-		_opts.Timeout = time.Second * 3
+		_opts.Timeout = defaultRequestTimeout
 	}
 
 	_referNodes, ok := broker.actionNodes.Load(action)
