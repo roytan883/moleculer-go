@@ -3,6 +3,8 @@ package moleculer
 import (
 	"errors"
 	"math/rand"
+	"net"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -852,7 +854,7 @@ func (broker *ServiceBroker) _genselfInfo() string {
 	nodeInfo.Client.Version = MoleculerLibVersion
 	nodeInfo.Client.LangVersion = "1.9.0"
 	nodeInfo.Sender = broker.config.NodeID
-	nodeInfo.IPList = make([]string, 0, 5)
+	nodeInfo.IPList = getLanIPs()
 	nodeInfo.Services = make([]protocol.MsInfoService, 0, 5)
 
 	for _, service := range broker.config.Services {
@@ -885,6 +887,7 @@ func (broker *ServiceBroker) _genselfInfo() string {
 	}
 	broker.selfInfoString = string(jsonBytes)
 
+	log.Info("_genselfInfo = ", broker.selfInfoString)
 	return broker.selfInfoString
 }
 
@@ -906,4 +909,57 @@ func stringIsBlank(text string) bool {
 // StringIsNotBlank returns true if the string is not blank
 func stringIsNotBlank(text string) bool {
 	return !stringIsBlank(text)
+}
+
+func getLanIP() string {
+	ips := make([]string, 0)
+	//ips := make([]string, 10)
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		os.Stderr.WriteString("net.InterfaceAddrs err:" + err.Error())
+		os.Exit(1)
+	}
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				//os.Stdout.WriteString(ipnet.IP.String() + "\n")
+				ips = append(ips, ipnet.IP.String())
+			}
+		}
+	}
+	ret := ""
+	for _, value := range ips {
+		if !strings.HasSuffix(value, ".1") && !strings.HasSuffix(value, ".0") {
+			ret = value
+			return ret
+		}
+	}
+	return ret
+}
+
+func getLanIPs() []string {
+	ips := make([]string, 0)
+
+	//ips := make([]string, 10)
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		os.Stderr.WriteString("net.InterfaceAddrs err:" + err.Error())
+		os.Exit(1)
+	}
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				//os.Stdout.WriteString(ipnet.IP.String() + "\n")
+				ips = append(ips, ipnet.IP.String())
+			}
+		}
+	}
+
+	retIPs := make([]string, 0)
+	for _, value := range ips {
+		if !strings.HasSuffix(value, ".1") && !strings.HasSuffix(value, ".0") {
+			retIPs = append(retIPs, value)
+		}
+	}
+	return retIPs
 }
