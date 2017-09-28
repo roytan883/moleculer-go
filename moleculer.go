@@ -107,9 +107,9 @@ type waitResponseStruct struct {
 //NewServiceBroker ...
 func NewServiceBroker(config *ServiceBrokerConfig) (*ServiceBroker, error) {
 
-	if stringIsEmpty(config.NodeID) {
-		log.Error("Can't use empty NodeID")
-		panic("Can't use empty NodeID")
+	if stringIsEmptyOrBlank(config.NodeID) {
+		log.Error("NewServiceBroker but config.NodeID IsEmptyOrBlank")
+		panic("NewServiceBroker but config.NodeID IsEmptyOrBlank")
 	}
 
 	serviceBroker := &ServiceBroker{
@@ -565,6 +565,7 @@ func (broker *ServiceBroker) _broadcastDiscover() {
 		Sender: broker.config.NodeID,
 	})
 	if err != nil {
+		log.Error("NATS _broadcastDiscover Marshal err: ", err)
 		panic(err)
 	}
 	broker.con.Publish("MOL.DISCOVER", sendData)
@@ -585,6 +586,7 @@ func (broker *ServiceBroker) _broadcastHeartbeat() {
 		CPU:    0,
 	})
 	if err != nil {
+		log.Error("NATS _broadcastHeartbeat Marshal err: ", err)
 		panic(err)
 	}
 	broker.con.Publish("MOL.HEARTBEAT", sendData)
@@ -778,7 +780,8 @@ func (broker *ServiceBroker) _onPing(msg *nats.Msg) {
 			Arrived: uint64(time.Now().UnixNano() / 1e6),
 		})
 		if err != nil {
-			panic(err)
+			log.Error("NATS _onPing Marshal err: ", err)
+			return
 		}
 		broker.con.Publish("MOL.PONG."+jsonObj.Sender, sendData)
 	}
@@ -895,6 +898,7 @@ func (broker *ServiceBroker) _genselfInfo() string {
 
 	jsonBytes, err := jsoniter.Marshal(nodeInfo)
 	if err != nil {
+		log.Error("_genselfInfo Marshal err: ", err)
 		panic(err)
 	}
 	broker.selfInfoString = string(jsonBytes)
@@ -921,6 +925,16 @@ func stringIsBlank(text string) bool {
 // StringIsNotBlank returns true if the string is not blank
 func stringIsNotBlank(text string) bool {
 	return !stringIsBlank(text)
+}
+
+// stringIsEmptyOrBlank returns true if the string is empty or blank (all whitespace)
+func stringIsEmptyOrBlank(text string) bool {
+	return stringIsEmpty(text) && stringIsBlank(text)
+}
+
+// stringIsNotEmptyOrBlank returns true if the string is not empty or blank (all whitespace)
+func stringIsNotEmptyOrBlank(text string) bool {
+	return !stringIsEmptyOrBlank(text)
 }
 
 func getLanIP() string {
