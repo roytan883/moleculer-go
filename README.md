@@ -21,18 +21,18 @@ go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
 
 ## v0.1.0
 - [x] MOL.DISCOVER
-- [x] MOL.DISCOVER.<nodeID>
+- [x] MOL.DISCOVER.`nodeID`
 - [x] MOL.INFO
-- [x] MOL.INFO.<nodeID>
+- [x] MOL.INFO.nodeID
 - [x] MOL.HEARTBEAT
-- [x] MOL.REQ.<nodeID>
-- [ ] MOL.REQB.<action>
-- [x] MOL.RES.<nodeID>
-- [x] MOL.EVENT.<nodeID>
-- [ ] MOL.EVENTB.<event>
+- [x] MOL.REQ.`nodeID`
+- [ ] MOL.REQB.`action`
+- [x] MOL.RES.`nodeID`
+- [x] MOL.EVENT.`nodeID`
+- [ ] MOL.EVENTB.`event`
 - [x] MOL.PING
-- [x] MOL.PING.<nodeID>
-- [x] MOL.PONG.<nodeID>
+- [x] MOL.PING.`nodeID`
+- [x] MOL.PONG.`nodeID`
 - [x] MOL.DISCONNECT
 
 
