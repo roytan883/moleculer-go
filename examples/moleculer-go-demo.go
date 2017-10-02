@@ -42,14 +42,19 @@ func waitExit() {
 	// `signal.Notify` registers the given channel to
 	// receive notifications of the specified signals.
 	signal.Notify(sigs,
+		// os.Interrupt,
 		syscall.SIGINT,
+		syscall.SIGHUP,
+		syscall.SIGKILL,
 		syscall.SIGTERM,
+		syscall.SIGQUIT,
 	)
 	// This goroutine executes a blocking receive for
 	// signals. When it gets one it'll print it out
 	// and then notify the program that it can finish.
 	go func() {
 		sig := <-sigs
+		log.Info("on system signal: ", sig)
 		log.Debug(sig)
 		done <- true
 	}()
