@@ -144,8 +144,8 @@ func main() {
 	config := &moleculer.ServiceBrokerConfig{
 		NatsHost: hosts,
 		NodeID:   "moleculer-go-demo",
-		// LogLevel: logrus.DebugLevel,
-		LogLevel: logrus.ErrorLevel,
+		// LogLevel: moleculer.DebugLevel,
+		LogLevel: moleculer.ErrorLevel,
 		Services: make(map[string]moleculer.Service),
 	}
 	config.Services["demoService"] = createDemoService()

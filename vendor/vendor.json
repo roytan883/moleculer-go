@@ -9,10 +9,10 @@
 			"revisionTime": "2017-08-22T13:27:46Z"
 		},
 		{
-			"checksumSHA1": "ATWdid6226zEtPadx4fdSp2sF2k=",
+			"checksumSHA1": "aTsQvNdeU70SyJEXT4UzTLiO7nY=",
 			"path": "github.com/json-iterator/go",
-			"revision": "dbb1ef3f63aa0d9a11eec791f70d4a19981fa068",
-			"revisionTime": "2017-09-21T13:04:45Z"
+			"revision": "abe3c4016bd3f50fa9c5b0e909641e2b8370b0cf",
+			"revisionTime": "2017-09-26T07:35:55Z"
 		},
 		{
 			"checksumSHA1": "YdkUoSkbe4ZgLJyFqpEbWZpfPtE=",
@@ -41,20 +41,20 @@
 		{
 			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
 			"path": "golang.org/x/crypto/ssh/terminal",
-			"revision": "7d9177d70076375b9a59c8fde23d52d9c4a7ecd5",
-			"revisionTime": "2017-09-15T19:08:28Z"
+			"revision": "9419663f5a44be8b34ca85f08abc5fe1be11f8a3",
+			"revisionTime": "2017-09-30T17:45:11Z"
 		},
 		{
-			"checksumSHA1": "ZWgtYdxJbBEFnRbrdVOi7QrQVdc=",
+			"checksumSHA1": "tY+5thYxjKDUQyQXYcBqogmMS5U=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "2320a9c15898af1b1b24f99700d5c1e957f9d8cf",
-			"revisionTime": "2017-09-21T09:26:02Z"
+			"revision": "314a259e304ff91bd6985da2a7149bbf91237993",
+			"revisionTime": "2017-07-19T03:44:26Z"
 		},
 		{
 			"checksumSHA1": "pBPFzDGt3AVSRffB7ffiUnruFUk=",
 			"path": "golang.org/x/sys/windows",
-			"revision": "2320a9c15898af1b1b24f99700d5c1e957f9d8cf",
-			"revisionTime": "2017-09-21T09:26:02Z"
+			"revision": "314a259e304ff91bd6985da2a7149bbf91237993",
+			"revisionTime": "2017-07-19T03:44:26Z"
 		}
 	],
 	"rootPath": "github.com/roytan883/moleculer-go"
