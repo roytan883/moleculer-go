@@ -41,7 +41,7 @@ func initLog() {
 		FullTimestamp:   true,
 		TimestampFormat: "01-02 15:04:05.000000",
 	}
-	log.WithFields(logrus.Fields{"package": "moleculer", "file": "moleculer"})
+	log.WithFields(logrus.Fields{"package": "moleculer-go"})
 }
 
 const (
