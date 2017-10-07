@@ -622,7 +622,7 @@ func (broker *ServiceBroker) _onEvent(msg *nats.Msg) {
 		for _, service := range broker.config.Services {
 			eventHandler, ok := service.Events[eventName]
 			if ok {
-				go eventHandler(jsonObj)
+				eventHandler(jsonObj)
 			}
 		}
 	}()
