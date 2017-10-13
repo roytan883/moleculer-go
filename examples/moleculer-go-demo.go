@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	logrus "github.com/Sirupsen/logrus"
+	logrus "github.com/sirupsen/logrus"
 
 	nats "github.com/nats-io/go-nats"
 	moleculer "github.com/roytan883/moleculer-go"
@@ -137,6 +137,7 @@ func main() {
 	var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
 	flag.Usage = usage
 	flag.Parse()
+	log.Printf("urls : '%v'\n", urls)
 	var hosts = strings.Split(*urls, ",")
 	log.Printf("hosts : '%v'\n", hosts)
 

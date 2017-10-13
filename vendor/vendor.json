@@ -4,7 +4,7 @@
 	"package": [
 		{
 			"checksumSHA1": "9cl7+wv0GvxpQV+HOtV93F9pbmE=",
-			"path": "github.com/Sirupsen/logrus",
+			"path": "github.com/sirupsen/logrus",
 			"revision": "89742aefa4b206dcf400792f3bd35b542998eb3b",
 			"revisionTime": "2017-08-22T13:27:46Z"
 		},

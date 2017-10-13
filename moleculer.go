@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	logrus "github.com/Sirupsen/logrus"
 	nats "github.com/nats-io/go-nats"
 	"github.com/nats-io/nuid"
 	"github.com/roytan883/moleculer-go/protocol"
+	logrus "github.com/sirupsen/logrus"
 
 	jsoniter "github.com/json-iterator/go"
 )
