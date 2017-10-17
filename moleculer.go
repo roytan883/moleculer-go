@@ -393,29 +393,31 @@ func (broker *ServiceBroker) Call(action string, params interface{}, opts *CallO
 		}
 		chooseNodeID = _opts.NodeID
 	}
-	nodesCount := len(referNodes)
-	if nodesCount < 1 {
-		log.Warn("Call can't find node in actionNodes map")
-		return nil, errors.New("Service Not available: " + action)
-	}
-	onlineNodes := make([]string, 0)
-	for nodeID := range referNodes {
-		nodeStatusData, ok := broker.nodesStatus.Load(nodeID)
-		if ok {
-			nodeStatusObj, ok2 := nodeStatusData.(nodeStatusStruct)
-			if ok2 && nodeStatusObj.Status == nodeStatusOnline {
-				onlineNodes = append(onlineNodes, nodeStatusObj.NodeID)
+	if len(chooseNodeID) < 1 {
+		nodesCount := len(referNodes)
+		if nodesCount < 1 {
+			log.Warn("Call can't find node in actionNodes map")
+			return nil, errors.New("Service Not available: " + action)
+		}
+		onlineNodes := make([]string, 0)
+		for nodeID := range referNodes {
+			nodeStatusData, ok := broker.nodesStatus.Load(nodeID)
+			if ok {
+				nodeStatusObj, ok2 := nodeStatusData.(nodeStatusStruct)
+				if ok2 && nodeStatusObj.Status == nodeStatusOnline {
+					onlineNodes = append(onlineNodes, nodeStatusObj.NodeID)
+				}
 			}
 		}
-	}
-	onlineNodesCount := len(onlineNodes)
-	if onlineNodesCount < 1 {
-		log.Warn("Call can't find node in nodesStatus map with online")
-		return nil, errors.New("Service Not available: " + action)
-	}
+		onlineNodesCount := len(onlineNodes)
+		if onlineNodesCount < 1 {
+			log.Warn("Call can't find node in nodesStatus map with online")
+			return nil, errors.New("Service Not available: " + action)
+		}
 
-	chooseIndex := rand.Intn(onlineNodesCount)
-	chooseNodeID = onlineNodes[chooseIndex]
+		chooseIndex := rand.Intn(onlineNodesCount)
+		chooseNodeID = onlineNodes[chooseIndex]
+	}
 
 	requestObj := &protocol.MsRequest{
 		Ver:       MoleculerProtocolVersion,
