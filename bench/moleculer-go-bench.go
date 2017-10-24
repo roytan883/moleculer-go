@@ -1,10 +1,8 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -29,7 +27,7 @@ func initLog() {
 		FullTimestamp:   true,
 		TimestampFormat: "01-02 15:04:05.000000",
 	}
-	log.WithFields(logrus.Fields{"package": "main", "file": "moleculer-go-demo"})
+	// log.WithFields(logrus.Fields{"package": "main", "file": "moleculer-go-demo"})
 }
 
 var pBroker *moleculer.ServiceBroker
@@ -72,35 +70,35 @@ func waitExit() {
 
 // NOTE: Use tls scheme for TLS, e.g. nats-req -s tls://demo.nats.io:4443 foo hello
 func usage() {
-	log.Fatalf("Usage: moleculer-go-demo [-s server (%s)] \n", nats.DefaultURL)
+	log.Fatalf("Usage: moleculer-go-demo [-s server (%s)] [-i nodeId (0)] [-m MethodName (benchService.bench)] [-n Client number (5)] [-c each client call method count (10000)]\n", nats.DefaultURL)
 }
 
 func createDemoService() moleculer.Service {
 	service := moleculer.Service{
-		ServiceName: "demoService",
+		ServiceName: ServiceName,
 		Actions:     make(map[string]moleculer.RequestHandler),
 		Events:      make(map[string]moleculer.EventHandler),
 	}
 
 	//init actions handlers
-	actionA := func(req *protocol.MsRequest) (interface{}, error) {
-		log.Info("run actionA, req.Params = ", req.Params)
-		data := map[string]interface{}{
-			"res1": "AAA",
-			"res2": 123,
-		}
-		return data, nil
-		// return nil, errors.New("test return error in actionA")
-	}
-	actionB := func(req *protocol.MsRequest) (interface{}, error) {
-		log.Info("run actionB, req.Params = ", req.Params)
-		data := map[string]interface{}{
-			"res1": "BBB",
-			"res2": 456,
-		}
-		return data, nil
-		// return nil, errors.New("test return error in actionB")
-	}
+	// actionA := func(req *protocol.MsRequest) (interface{}, error) {
+	// 	log.Info("run actionA, req.Params = ", req.Params)
+	// 	data := map[string]interface{}{
+	// 		"res1": "AAA",
+	// 		"res2": 123,
+	// 	}
+	// 	return data, nil
+	// 	// return nil, errors.New("test return error in actionA")
+	// }
+	// actionB := func(req *protocol.MsRequest) (interface{}, error) {
+	// 	log.Info("run actionB, req.Params = ", req.Params)
+	// 	data := map[string]interface{}{
+	// 		"res1": "BBB",
+	// 		"res2": 456,
+	// 	}
+	// 	return data, nil
+	// 	// return nil, errors.New("test return error in actionB")
+	// }
 	bench := func(req *protocol.MsRequest) (interface{}, error) {
 		// log.Info("run actionB, req.Params = ", req.Params)
 		data := map[string]interface{}{
@@ -110,19 +108,19 @@ func createDemoService() moleculer.Service {
 		return data, nil
 		// return nil, errors.New("test return error in actionB")
 	}
-	service.Actions["actionA"] = actionA
-	service.Actions["actionB"] = actionB
+	// service.Actions["actionA"] = actionA
+	// service.Actions["actionB"] = actionB
 	service.Actions["bench"] = bench
 
 	//init listen events handlers
-	onEventUserCreate := func(req *protocol.MsEvent) {
-		log.Info("run onEventUserCreate, req.Data = ", req.Data)
-	}
-	onEventUserDelete := func(req *protocol.MsEvent) {
-		log.Info("run onEventUserDelete, req.Data = ", req.Data)
-	}
-	service.Events["user.create"] = onEventUserCreate
-	service.Events["user.delete"] = onEventUserDelete
+	// onEventUserCreate := func(req *protocol.MsEvent) {
+	// 	log.Info("run onEventUserCreate, req.Data = ", req.Data)
+	// }
+	// onEventUserDelete := func(req *protocol.MsEvent) {
+	// 	log.Info("run onEventUserDelete, req.Data = ", req.Data)
+	// }
+	// service.Events["user.create"] = onEventUserCreate
+	// service.Events["user.delete"] = onEventUserDelete
 
 	return service
 }
@@ -130,22 +128,27 @@ func createDemoService() moleculer.Service {
 //go run .\examples\moleculer-go-demo.go -s nats://192.168.1.69:12008
 func main() {
 
+	initFlag()
+
+	printFlag()
+
 	//get NATS server host
-	var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
-	flag.Usage = usage
-	flag.Parse()
-	var hosts = strings.Split(*urls, ",")
-	log.Printf("hosts : '%v'\n", hosts)
+	// var urls = flag.String("s", nats.DefaultURL, "The nats server URLs (separated by comma)")
+	// flag.Usage = usage
+	// flag.Parse()
+	// var hosts = strings.Split(*urls, ",")
+	// log.Printf("hosts : '%v'\n", hosts)
 
 	//init service and broker
 	config := &moleculer.ServiceBrokerConfig{
-		NatsHost: hosts,
-		NodeID:   "moleculer-go-demo-bench",
-		// LogLevel: logrus.DebugLevel,
-		LogLevel: logrus.ErrorLevel,
+		NatsHost: gNatsHosts,
+		NodeID:   gNodeID,
+		// LogLevel: moleculer.DebugLevel,
+		LogLevel: moleculer.ErrorLevel,
 		Services: make(map[string]moleculer.Service),
 	}
-	// config.Services["demoService"] = createDemoService()
+	service := createDemoService()
+	config.Services[service.ServiceName] = service
 	broker, err := moleculer.NewServiceBroker(config)
 	if err != nil {
 		log.Fatalf("NewServiceBroker err: %v\n", err)
@@ -158,9 +161,9 @@ func main() {
 	var maxLatency time.Duration
 
 	test10K := func(wg *sync.WaitGroup) {
-		for index := 0; index < 10000; index++ {
+		for index := 0; index < gPerThreadCount; index++ {
 			startTime := time.Now()
-			broker.Call("demoService.bench", map[string]interface{}{
+			broker.Call(gMethodName, map[string]interface{}{
 				"arg1": "aaa",
 				"arg2": 123,
 			}, nil)
@@ -185,10 +188,10 @@ func main() {
 
 	//test call and emit
 	go time.AfterFunc(time.Second*1, func() {
-		log.Info("broker.Call demoService.bench start")
+		log.Warnf("broker.Call MethodName[%s] start\n", gMethodName)
 		startTime := time.Now()
 		wg := sync.WaitGroup{}
-		goroutineNum := 50
+		goroutineNum := gThreadNum
 		wg.Add(goroutineNum)
 		for index := 0; index < goroutineNum; index++ {
 			go test10K(&wg)
@@ -197,10 +200,10 @@ func main() {
 		endTime := time.Now()
 		useTime := endTime.Sub(startTime)
 		rps := uint(float64(callCount) / float64(useTime.Nanoseconds()) * 1e9)
-		log.Info("broker.Call demoService.bench end")
+		log.Warnf("broker.Call MethodName[%s] end\n", gMethodName)
 		// log.Infof("broker.Call demoService.bench %d maxLatency: %s", callCount, maxLatency)
-		log.Infof("broker.Call demoService.bench goroutineNum[%d] callCount[%d] use[%s] req/s[%d] minLatency[%s] maxLatency[%s]",
-			goroutineNum, callCount, useTime, rps, minLatency, maxLatency)
+		log.Warnf("broker.Call MethodName[%s] Client[%d] TotalCallCount[%d] use[%s] req/s[%d] minLatency[%s] maxLatency[%s]",
+			gMethodName, goroutineNum, callCount, useTime, rps, minLatency, maxLatency)
 		// log.Infof("broker.Call demoService.bench %d minLatency: %s", callCount, minLatency)
 		// log.Infof("broker.Call demoService.bench %d maxLatency: %s", callCount, maxLatency)
 	})
