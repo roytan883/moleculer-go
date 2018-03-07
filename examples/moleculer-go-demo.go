@@ -144,6 +144,7 @@ func main() {
 	//init service and broker
 	config := &moleculer.ServiceBrokerConfig{
 		NatsHost: hosts,
+		Hostname: "testHostname",
 		NodeID:   "moleculer-go-demo",
 		// LogLevel: moleculer.DebugLevel,
 		LogLevel: moleculer.ErrorLevel,

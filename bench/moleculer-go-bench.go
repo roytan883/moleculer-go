@@ -142,6 +142,7 @@ func main() {
 	//init service and broker
 	config := &moleculer.ServiceBrokerConfig{
 		NatsHost: gNatsHosts,
+		Hostname: "testHostname",
 		NodeID:   gNodeID,
 		// LogLevel: moleculer.DebugLevel,
 		LogLevel: moleculer.ErrorLevel,

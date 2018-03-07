@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	//MoleculerLibVersion 0.3.0
-	MoleculerLibVersion = "0.3.0"
-	//MoleculerProtocolVersion 0.1.0
-	MoleculerProtocolVersion = "2"
+	//MoleculerLibVersion = "0.5.0"
+	MoleculerLibVersion = "0.5.0"
+	//MoleculerProtocolVersion = "3" ~ 0.12 MoleculerJs
+	MoleculerProtocolVersion = "3"
 
 	defaultRequestTimeout     = time.Second * 5
 	natsNodeHeartbeatInterval = time.Second * 5
@@ -79,6 +79,7 @@ type Service struct {
 //ServiceBrokerConfig ...
 type ServiceBrokerConfig struct {
 	NatsHost              []string
+	Hostname              string
 	NodeID                string
 	LogLevel              uint32        //default 0 (PanicLevel)
 	DefaultRequestTimeout time.Duration //default 5s
@@ -681,6 +682,7 @@ func (broker *ServiceBroker) _onRequest(msg *nats.Msg) {
 		jsonRes.Ver = jsonObj.Ver
 		jsonRes.Sender = broker.config.NodeID
 		jsonRes.ID = jsonObj.ID
+		jsonRes.Meta = jsonObj.Meta
 		// jsonRes.Success = true //should set by app layer
 		sendData, err3 := jsoniter.Marshal(jsonRes)
 		if err3 != nil {
@@ -883,6 +885,7 @@ func (broker *ServiceBroker) _genselfInfo() string {
 	var nodeInfo = &protocol.MsInfoNode{}
 	broker.selfInfo = nodeInfo
 	nodeInfo.Ver = MoleculerProtocolVersion
+	nodeInfo.Hostname = broker.config.Hostname
 	nodeInfo.Client.Type = "go"
 	nodeInfo.Client.Version = MoleculerLibVersion
 	nodeInfo.Client.LangVersion = "1.9.0"

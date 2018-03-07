@@ -8,4 +8,5 @@ type MsResponse struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data"`
 	Error   interface{} `json:"error"`
+	Meta    interface{} `json:"meta"`
 }

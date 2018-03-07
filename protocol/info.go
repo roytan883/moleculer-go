@@ -33,7 +33,8 @@ type MsInfoNode struct {
 	Sender   string          `json:"sender"`
 	Services []MsInfoService `json:"services"`
 	IPList   []string        `json:"ipList"`
+	Hostname string          `json:"hostname"`
 	Client   MsInfoClient    `json:"client"`
-	Port     uint            `json:"port"`
-	Config   interface{}     `json:"config"`
+	// Port     uint            `json:"port"`
+	Config interface{} `json:"config"`
 }
