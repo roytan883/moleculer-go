@@ -508,10 +508,11 @@ func (broker *ServiceBroker) Emit(event string, params interface{}) (err error) 
 	chooseNodeID = onlineNodes[chooseIndex]
 
 	requestObj := &protocol.MsEvent{
-		Ver:    MoleculerProtocolVersion,
-		Sender: broker.config.NodeID,
-		Event:  event,
-		Data:   params,
+		Ver:       MoleculerProtocolVersion,
+		Sender:    broker.config.NodeID,
+		Event:     event,
+		Data:      params,
+		Broadcast: false,
 	}
 	sendData, err := jsoniter.Marshal(requestObj)
 	if err != nil {
@@ -558,10 +559,11 @@ func (broker *ServiceBroker) Broadcast(event string, params interface{}) (err er
 	}
 
 	requestObj := &protocol.MsEvent{
-		Ver:    MoleculerProtocolVersion,
-		Sender: broker.config.NodeID,
-		Event:  event,
-		Data:   params,
+		Ver:       MoleculerProtocolVersion,
+		Sender:    broker.config.NodeID,
+		Event:     event,
+		Data:      params,
+		Broadcast: true,
 	}
 	sendData, err := jsoniter.Marshal(requestObj)
 	if err != nil {
